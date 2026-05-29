@@ -1,21 +1,24 @@
 import { useEffect, useRef } from 'react'
 import Deck from './Deck.jsx'
 
-// Track is served from the bucket via /api/music (presigned). It plays only on
-// this page, starting as soon as the page opens, fading in to a soft background
-// level. No on-screen control by design.
-const MUSIC_SRC = (import.meta.env.VITE_API_BASE || '') + '/api/music'
+// The track plays only on this page, starting as soon as it opens and fading in
+// to a soft background level. We fetch ONE stable media URL first (a single
+// presigned S3 URL) so mobile range-requests don't churn through redirects —
+// that was cutting the music off after a second on phones. No on-screen control.
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 const TARGET_VOLUME = 0.35
 
 export default function Invitation() {
   const rampRef = useRef(null)
 
   useEffect(() => {
+    let cancelled = false
     // Use a JS Audio object (not a DOM <audio>) so it can outlive this
     // component during the fade-out when the guest leaves the page.
-    const audio = new Audio(MUSIC_SRC)
+    const audio = new Audio()
     audio.loop = true
     audio.volume = 0
+    audio.preload = 'auto'
     let wantPlaying = true
 
     const clearRamp = () => {
@@ -36,20 +39,27 @@ export default function Invitation() {
     }
     const playAndFade = () => audio.play().then(() => fadeTo(TARGET_VOLUME, 6000)).catch(() => {})
 
-    // Start immediately. If the browser blocks autoplay, start on first touch.
+    // If the browser blocks autoplay, start on the first touch instead.
     let removeGesture = () => {}
-    audio.play().then(
-      () => fadeTo(TARGET_VOLUME, 6000),
-      () => {
-        const onGesture = () => {
-          playAndFade()
-          removeGesture()
-        }
-        ;['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.addEventListener(e, onGesture))
-        removeGesture = () =>
-          ['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.removeEventListener(e, onGesture))
-      },
-    )
+    const armGesture = () => {
+      const onGesture = () => {
+        playAndFade()
+        removeGesture()
+      }
+      ;['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.addEventListener(e, onGesture))
+      removeGesture = () =>
+        ['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.removeEventListener(e, onGesture))
+    }
+
+    // Fetch the single stable URL first, set it once, then start playback.
+    fetch(`${API_BASE}/api/music-url`)
+      .then((r) => r.json())
+      .then(({ url }) => {
+        if (cancelled || !url) return
+        audio.src = url.startsWith('/') ? API_BASE + url : url
+        audio.play().then(() => fadeTo(TARGET_VOLUME, 6000), () => armGesture())
+      })
+      .catch(() => {})
 
     // Pause when the screen locks / tab is hidden; resume when visible again.
     const onVisibility = () => {
@@ -64,6 +74,7 @@ export default function Invitation() {
 
     // Leaving the page: gentle fade-out, then stop.
     return () => {
+      cancelled = true
       wantPlaying = false
       document.removeEventListener('visibilitychange', onVisibility)
       removeGesture()

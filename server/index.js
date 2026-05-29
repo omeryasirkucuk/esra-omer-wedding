@@ -31,6 +31,20 @@ app.get('/media/*', (req, res) => storage.mediaHandler(req, res))
 // Invitation background music. On S3 it 302-redirects to a presigned URL for
 // the private object; locally it falls back to a file under public/music.
 const MUSIC_KEY = process.env.MUSIC_KEY || 'music/davetiye-music.mp3'
+
+// Returns a single, stable media URL the player can use for ALL range requests.
+// On S3 that's one presigned URL (fetched once → no per-range redirect churn,
+// which broke playback on mobile); locally it points at the streaming route.
+app.get('/api/music-url', async (_req, res) => {
+  try {
+    const url = await storage.signKey(MUSIC_KEY)
+    if (url) return res.json({ url })
+  } catch (err) {
+    console.error('[music-url]', err)
+  }
+  res.json({ url: '/api/music' })
+})
+
 app.get('/api/music', async (_req, res) => {
   try {
     const url = await storage.signKey(MUSIC_KEY)
