@@ -24,6 +24,22 @@ export default function Cover({ onOpen }) {
             <circle className="eo-flower" cx="70" cy="74" r="6" /><circle className="eo-flower" cx="80" cy="66" r="5" /><circle className="eo-flower" cx="62" cy="68" r="4.5" />
             <circle className="eo-flower" cx="128" cy="76" r="6" /><circle className="eo-flower" cx="120" cy="66" r="5" /><circle className="eo-flower" cx="136" cy="70" r="4.5" />
           </g>
+
+          {/* drifting rose petals (showpiece) */}
+          <g fill="#c2a0b0">
+            <ellipse className="eo-petal" cx="82" cy="58" rx="2.6" ry="4" style={{ '--eo-drift': '-16px', animationDelay: '0s', animationDuration: '6s' }} />
+            <ellipse className="eo-petal" cx="100" cy="46" rx="2.2" ry="3.4" style={{ '--eo-drift': '12px', animationDelay: '1.5s', animationDuration: '7.2s' }} />
+            <ellipse className="eo-petal" cx="118" cy="56" rx="2.8" ry="4.2" style={{ '--eo-drift': '20px', animationDelay: '2.8s', animationDuration: '6.4s' }} />
+            <ellipse className="eo-petal" cx="92" cy="66" rx="2.1" ry="3.2" style={{ '--eo-drift': '-9px', animationDelay: '3.8s', animationDuration: '7.6s' }} />
+            <ellipse className="eo-petal" cx="110" cy="62" rx="2.5" ry="3.8" style={{ '--eo-drift': '24px', animationDelay: '5s', animationDuration: '6.8s' }} />
+          </g>
+
+          {/* gold sparkles near the arch crown */}
+          <g fill="#c2a25c">
+            <circle className="eo-sparkle" cx="100" cy="40" r="1.7" style={{ animationDelay: '0.2s' }} />
+            <circle className="eo-sparkle" cx="83" cy="50" r="1.3" style={{ animationDelay: '1.2s' }} />
+            <circle className="eo-sparkle" cx="117" cy="50" r="1.3" style={{ animationDelay: '2s' }} />
+          </g>
           <g fill="#8a9a7b" opacity="0.85">
             <ellipse cx="92" cy="60" rx="4" ry="9" transform="rotate(-25 92 60)" />
             <ellipse cx="110" cy="60" rx="4" ry="9" transform="rotate(25 110 60)" />

@@ -75,48 +75,72 @@
  * and Cover.jsx, so all logo usages animate automatically. transform-box:
  * fill-box makes SVG transforms pivot around each element's own box.
  */
-/* Flowers are circles, so we pulse them with SCALE (rotation is invisible on a
-   circle) plus a soft glow — visible at any logo size. */
+/* Flowers are circles → pulse with SCALE + glow (rotation is invisible on a
+   circle). Clearly visible at any size. */
 @keyframes eoFlowerSway {
   0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
-  50%      { transform: translateY(-1.4px) scale(1.22); opacity: 1; }
+  50%      { transform: translateY(-1.6px) scale(1.3); opacity: 1; }
 }
+/* Cat sways in place. */
 @keyframes eoCatBob {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-1px) rotate(3deg); }
+  50%      { transform: translateY(-1px) rotate(3.5deg); }
 }
-@keyframes eoTailFlick {
-  0%, 68%, 100% { transform: rotate(0deg); }
-  80%           { transform: rotate(-18deg); }
-  90%           { transform: rotate(10deg); }
+/* Tail swishes continuously, back and forth. */
+@keyframes eoTailWag {
+  0%, 100% { transform: rotate(-15deg); }
+  50%      { transform: rotate(15deg); }
+}
+/* A rose petal drifting down and fading (cover showpiece). */
+@keyframes eoPetalFall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 0.85; }
+  100% { transform: translate(var(--eo-drift, 10px), 150px) rotate(260deg); opacity: 0; }
+}
+/* Gold sparkle twinkle. */
+@keyframes eoSparkle {
+  0%, 100% { transform: scale(0.5); opacity: 0; }
+  50%      { transform: scale(1.2); opacity: 1; }
 }
 
 .eo-flower {
   transform-box: fill-box;
   transform-origin: center;
-  animation: eoFlowerSway 3.6s ease-in-out infinite;
+  animation: eoFlowerSway 3.4s ease-in-out infinite;
 }
-.eo-flower:nth-of-type(2) { animation-delay: 0.4s; }
-.eo-flower:nth-of-type(3) { animation-delay: 0.8s; }
-.eo-flower:nth-of-type(4) { animation-delay: 1.2s; }
-.eo-flower:nth-of-type(5) { animation-delay: 0.6s; }
-.eo-flower:nth-of-type(6) { animation-delay: 1s; }
+.eo-flower:nth-of-type(2) { animation-delay: 0.35s; }
+.eo-flower:nth-of-type(3) { animation-delay: 0.7s; }
+.eo-flower:nth-of-type(4) { animation-delay: 1.05s; }
+.eo-flower:nth-of-type(5) { animation-delay: 0.5s; }
+.eo-flower:nth-of-type(6) { animation-delay: 0.9s; }
 
 .eo-cat {
   transform-box: fill-box;
   transform-origin: center bottom;
-  animation: eoCatBob 4.8s ease-in-out infinite;
+  animation: eoCatBob 4.6s ease-in-out infinite;
 }
 .eo-tail {
   transform-box: fill-box;
-  transform-origin: 100% 30%;
-  animation: eoTailFlick 6s ease-in-out infinite;
+  transform-origin: 100% 20%;
+  animation: eoTailWag 2.6s ease-in-out infinite;
+}
+.eo-petal {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eoPetalFall 6s ease-in infinite;
+}
+.eo-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eoSparkle 2.8s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .eo-flower,
   .eo-cat,
-  .eo-tail {
+  .eo-tail,
+  .eo-petal,
+  .eo-sparkle {
     animation: none !important;
   }
 }
