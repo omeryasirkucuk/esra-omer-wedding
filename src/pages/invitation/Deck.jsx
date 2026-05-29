@@ -48,7 +48,7 @@ function mapsDirectionsUrl(wedding) {
 export default function Deck() {
   const wedding = useSite()
   return (
-    <div className="h-[100svh] overflow-y-scroll snap-y snap-mandatory scroll-gold">
+    <div data-deck className="h-[100svh] overflow-y-scroll snap-y snap-mandatory scroll-gold">
       {/* 1 · Hero (the deck starts here; the cover illustration lives on the
           entry Cover, so we don't repeat it as a panel) */}
       <Panel>
@@ -143,6 +143,15 @@ export default function Deck() {
         <p className="label mt-5">
           {wedding.bride} &amp; {wedding.groom}
         </p>
+        <button
+          type="button"
+          onClick={(e) =>
+            e.currentTarget.closest('[data-deck]')?.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          className="btn-lux mt-10 inline-flex items-center gap-2"
+        >
+          <span className="text-gold">↑</span> En Üste Çık
+        </button>
       </Panel>
     </div>
   )

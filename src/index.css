@@ -68,3 +68,53 @@
     border-radius: 5px;
   }
 }
+
+/*
+ * Living emblem: the arch flowers sway + gently glow, and the cat breathes in
+ * place with an occasional tail flick. Applied to the SVG parts in Emblem.jsx
+ * and Cover.jsx, so all logo usages animate automatically. transform-box:
+ * fill-box makes SVG transforms pivot around each element's own box.
+ */
+@keyframes eoFlowerSway {
+  0%, 100% { transform: translateY(0) rotate(-4deg); opacity: 0.72; }
+  50%      { transform: translateY(-0.6px) rotate(4deg); opacity: 1; }
+}
+@keyframes eoCatBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-0.5px) rotate(-1.2deg); }
+}
+@keyframes eoTailFlick {
+  0%, 72%, 100% { transform: rotate(0deg); }
+  82%           { transform: rotate(-12deg); }
+  90%           { transform: rotate(7deg); }
+}
+
+.eo-flower {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eoFlowerSway 3.6s ease-in-out infinite;
+}
+.eo-flower:nth-of-type(2) { animation-delay: 0.4s; }
+.eo-flower:nth-of-type(3) { animation-delay: 0.8s; }
+.eo-flower:nth-of-type(4) { animation-delay: 1.2s; }
+.eo-flower:nth-of-type(5) { animation-delay: 0.6s; }
+.eo-flower:nth-of-type(6) { animation-delay: 1s; }
+
+.eo-cat {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: eoCatBob 4.8s ease-in-out infinite;
+}
+.eo-tail {
+  transform-box: fill-box;
+  transform-origin: 100% 30%;
+  animation: eoTailFlick 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eo-flower,
+  .eo-cat,
+  .eo-tail {
+    animation: none !important;
+  }
+}

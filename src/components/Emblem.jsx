@@ -27,27 +27,32 @@ export default function Emblem({ size = 52, tone = 'default', linkHome = false, 
         opacity="0.75"
       />
       <g fill={palette.flower} opacity="0.9">
-        <circle cx="31" cy="26" r="3" />
-        <circle cx="37" cy="21" r="2.3" />
-        <circle cx="59" cy="26" r="3" />
-        <circle cx="53" cy="21" r="2.3" />
+        <circle className="eo-flower" cx="31" cy="26" r="3" />
+        <circle className="eo-flower" cx="37" cy="21" r="2.3" />
+        <circle className="eo-flower" cx="59" cy="26" r="3" />
+        <circle className="eo-flower" cx="53" cy="21" r="2.3" />
       </g>
       <g fill={palette.fig} opacity={tone === 'light' ? 1 : 0.88}>
+        {/* couple silhouette — stays still */}
         <path d="M40 74 L40 50 Q40 44 44 43 L44 74 Z" />
         <path d="M50 74 L50 50 Q50 43 46 43 L46 74 Z" />
         <circle cx="42" cy="39" r="3.4" />
         <circle cx="48" cy="39" r="3.4" />
-        <path d="M62 74 C56 74 56 64 59 60 C61 57 65 57 66 60 C69 64 69 74 64 74 Z" />
-        <circle cx="63.5" cy="57" r="3.4" />
-        <path d="M60.8 55 L60 50 L64 53.5 Z" />
-        <path d="M66.2 55 L67 50 L63 53.5 Z" />
-        <path
-          d="M57 73 C51 72 53 65 58 66.5"
-          fill="none"
-          stroke={palette.fig}
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
+        {/* cat — breathes in place, tail flicks */}
+        <g className="eo-cat">
+          <path d="M62 74 C56 74 56 64 59 60 C61 57 65 57 66 60 C69 64 69 74 64 74 Z" />
+          <circle cx="63.5" cy="57" r="3.4" />
+          <path d="M60.8 55 L60 50 L64 53.5 Z" />
+          <path d="M66.2 55 L67 50 L63 53.5 Z" />
+          <path
+            className="eo-tail"
+            d="M57 73 C51 72 53 65 58 66.5"
+            fill="none"
+            stroke={palette.fig}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+        </g>
       </g>
     </svg>
   )

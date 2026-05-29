@@ -56,6 +56,55 @@ app.get('/api/music', async (req, res) => {
   res.status(404).end()
 })
 
+// Calendar file served with the proper media type so iOS opens the Apple
+// Calendar "add event" sheet directly (no awkward file download). Built from the
+// admin-edited site content so the date always matches the site.
+const WEDDING_DEFAULTS = {
+  bride: 'Esra',
+  groom: 'Ömer',
+  dateISO: '2026-07-17T19:30:00+03:00',
+  venue: {
+    name: 'Family Garden Kavacık',
+    address: 'Fatih Mah. Cumhuriyet Cad. İnci Sok. No:11, Beykoz / İstanbul',
+  },
+}
+function icsStamp(d) {
+  return new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+}
+app.get('/api/calendar.ics', async (_req, res) => {
+  let stored = {}
+  try {
+    stored = (await storage.getDoc('site_content')) || {}
+  } catch {
+    /* defaults */
+  }
+  const w = {
+    ...WEDDING_DEFAULTS,
+    ...stored,
+    venue: { ...WEDDING_DEFAULTS.venue, ...(stored.venue || {}) },
+  }
+  const start = new Date(w.dateISO)
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000)
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//esra-omer//wedding//TR',
+    'BEGIN:VEVENT',
+    `UID:${icsStamp(w.dateISO)}-esra-omer@wedding`,
+    `DTSTAMP:${icsStamp(w.dateISO)}`,
+    `DTSTART:${icsStamp(start)}`,
+    `DTEND:${icsStamp(end)}`,
+    `SUMMARY:${w.bride} & ${w.groom} — Düğün`,
+    `DESCRIPTION:${w.bride} & ${w.groom}'in düğününe davetlisiniz.`,
+    `LOCATION:${w.venue.name}, ${w.venue.address}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
+  res.setHeader('Content-Disposition', 'inline; filename="esra-omer-dugun.ics"')
+  res.send(ics)
+})
+
 app.use('/api/rsvp', rsvpRouter)
 app.use('/api/posts', postsRouter)
 app.use('/api/uploads', uploadsRouter)

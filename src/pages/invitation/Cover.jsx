@@ -21,8 +21,8 @@ export default function Cover({ onOpen }) {
         <svg viewBox="0 0 200 210" className="w-full h-auto" aria-hidden="true">
           <path d="M40 200 Q42 120 70 70 Q100 30 130 70 Q158 120 160 200" fill="none" stroke="#8a9a7b" strokeWidth="1.4" opacity="0.7" />
           <g fill="#b98ca0" opacity="0.8">
-            <circle cx="70" cy="74" r="6" /><circle cx="80" cy="66" r="5" /><circle cx="62" cy="68" r="4.5" />
-            <circle cx="128" cy="76" r="6" /><circle cx="120" cy="66" r="5" /><circle cx="136" cy="70" r="4.5" />
+            <circle className="eo-flower" cx="70" cy="74" r="6" /><circle className="eo-flower" cx="80" cy="66" r="5" /><circle className="eo-flower" cx="62" cy="68" r="4.5" />
+            <circle className="eo-flower" cx="128" cy="76" r="6" /><circle className="eo-flower" cx="120" cy="66" r="5" /><circle className="eo-flower" cx="136" cy="70" r="4.5" />
           </g>
           <g fill="#8a9a7b" opacity="0.85">
             <ellipse cx="92" cy="60" rx="4" ry="9" transform="rotate(-25 92 60)" />
@@ -33,11 +33,11 @@ export default function Cover({ onOpen }) {
             <path d="M108 200 L108 150 Q108 138 101 138 L101 200 Z" />
             <circle cx="95" cy="132" r="6" /><circle cx="105" cy="132" r="6" />
           </g>
-          <g fill="#5b5048">
+          <g className="eo-cat" fill="#5b5048">
             <path d="M138 200 C130 200 130 185 134 179 C136 175 142 175 144 179 C148 185 148 200 140 200 Z" />
             <circle cx="139" cy="175" r="5.6" />
             <path d="M134.4 172 L133 164 L139.2 169.5 Z" /><path d="M143.6 172 L145 164 L138.8 169.5 Z" />
-            <path d="M131 199 C123 198 125 189 132 190.5" fill="none" stroke="#5b5048" strokeWidth="2.4" strokeLinecap="round" />
+            <path className="eo-tail" d="M131 199 C123 198 125 189 132 190.5" fill="none" stroke="#5b5048" strokeWidth="2.4" strokeLinecap="round" />
           </g>
         </svg>
       </div>
