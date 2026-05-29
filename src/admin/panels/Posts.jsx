@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getPosts, deletePost, mediaUrl } from '../adminApi'
 import { formatDateTime } from '../format'
+import { alertDialog } from '../../lib/confirm.js'
 
 export default function Posts({ onAuthError }) {
   const [posts, setPosts] = useState(null)
@@ -38,7 +39,7 @@ export default function Posts({ onAuthError }) {
       setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, deleted: true } : p)))
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
-      else alert('Silinemedi, tekrar deneyin.')
+      else await alertDialog('Silinemedi, tekrar deneyin.')
     }
   }
 

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Emblem from '../components/Emblem.jsx'
 import Sprig from '../components/Sprig.jsx'
 import IdentityPrompt from '../components/IdentityPrompt.jsx'
+import ProfileChip from '../components/ProfileChip.jsx'
 import { api } from '../lib/api.js'
-import { getProfile, hasProfile, clearProfile } from '../lib/identity.js'
+import { getProfile, hasProfile } from '../lib/identity.js'
+import { confirmDialog } from '../lib/confirm.js'
 import UploadQueue from './album/UploadQueue.jsx'
 import MyGallery from './album/MyGallery.jsx'
 import { runWithConcurrency } from './album/runWithConcurrency.js'
@@ -13,19 +15,6 @@ const UPLOAD_CONCURRENCY = 3
 let queueSeq = 0
 function makeQueueId() {
   return `q${Date.now()}_${queueSeq++}`
-}
-
-// Greeting chip, offset from the fixed menu button so they never overlap.
-function GreetingChip({ firstName, onChange }) {
-  return (
-    <div className="fixed top-4 right-16 z-40 flex items-center gap-1.5 rounded-full border border-line bg-surface/70 backdrop-blur px-3 md:px-4 h-10 md:h-11">
-      <span className="font-display text-primary text-[13px] md:text-[15px]">👋 {firstName}</span>
-      <span className="text-muted text-[12px]">·</span>
-      <button type="button" onClick={onChange} className="label-gold">
-        değiştir
-      </button>
-    </div>
-  )
 }
 
 function Dropzone({ onFiles }) {
@@ -75,7 +64,7 @@ function Dropzone({ onFiles }) {
   )
 }
 
-function AlbumView({ profile, onChangeProfile }) {
+function AlbumView({ onProfileChange }) {
   const [queue, setQueue] = useState([])
   const [gallery, setGallery] = useState([])
 
@@ -127,7 +116,7 @@ function AlbumView({ profile, onChangeProfile }) {
   )
 
   const handleDelete = useCallback(async (item) => {
-    if (!window.confirm('Bu yüklemeyi silmek istiyor musun?')) return
+    if (!(await confirmDialog('Bu yüklemeyi silmek istiyor musun?'))) return
     setGallery((prev) => prev.filter((g) => g.id !== item.id))
     try {
       await api.deleteUpload(item.id)
@@ -137,9 +126,21 @@ function AlbumView({ profile, onChangeProfile }) {
     }
   }, [])
 
+  // Bulk-delete the given ids (one confirm handled by the caller). Optimistically
+  // drops them from the grid, then deletes server-side and re-syncs.
+  const handleBulkDelete = useCallback(
+    async (ids) => {
+      const set = new Set(ids)
+      setGallery((prev) => prev.filter((g) => !set.has(g.id)))
+      await Promise.allSettled([...set].map((id) => api.deleteUpload(id)))
+      await refreshGallery()
+    },
+    [refreshGallery],
+  )
+
   return (
     <section className="min-h-[100svh] flex flex-col items-center px-6 pt-20 pb-16">
-      <GreetingChip firstName={profile.firstName} onChange={onChangeProfile} />
+      <ProfileChip onChange={onProfileChange} className="fixed top-4 right-16 z-40" />
 
       <Emblem className="w-12 md:w-16" linkHome />
       <p className="label mt-5 md:text-[0.7rem]">Düğün Albümü</p>
@@ -151,7 +152,7 @@ function AlbumView({ profile, onChangeProfile }) {
       <div className="w-full max-w-md md:max-w-2xl">
         <Dropzone onFiles={enqueue} />
         <UploadQueue items={queue} />
-        <MyGallery items={gallery} onDelete={handleDelete} />
+        <MyGallery items={gallery} onDelete={handleDelete} onBulkDelete={handleBulkDelete} />
       </div>
     </section>
   )
@@ -164,10 +165,7 @@ export default function Album() {
     return <IdentityPrompt onDone={setProfile} />
   }
 
-  const changeProfile = () => {
-    clearProfile()
-    setProfile(null)
-  }
-
-  return <AlbumView profile={profile} onChangeProfile={changeProfile} />
+  // ProfileChip handles re-entry inline and reports the new profile here so the
+  // cached display name stays in sync.
+  return <AlbumView onProfileChange={setProfile} />
 }

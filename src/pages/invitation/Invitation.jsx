@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Deck from './Deck.jsx'
 import Cover from './Cover.jsx'
-import { bindInvitationMusic, primeMusic, isPrimed } from '../../lib/music.js'
+import { bindInvitationMusic, primeMusic } from '../../lib/music.js'
 
 // Background music plays only on the invitation.
 // - QR/home flow: the home "Davetiye" tap unlocks the music (primeMusic) and it
@@ -10,7 +10,9 @@ import { bindInvitationMusic, primeMusic, isPrimed } from '../../lib/music.js'
 //   cover; tapping it starts the music in a real gesture (the only way browsers
 //   allow audio) and opens the deck.
 export default function Invitation() {
-  const [open, setOpen] = useState(() => isPrimed())
+  // Always open with the cover so the music starts on a tap — same flow whether
+  // the guest came from the home "Davetiye" tap or straight to /davetiye.
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return undefined

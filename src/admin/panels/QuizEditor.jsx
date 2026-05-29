@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { getGamesContent, saveGamesContent } from '../adminApi'
 import { quizQuestions } from '../../data/quiz'
+import { alertDialog } from '../../lib/confirm.js'
 
 // Clone the seed so edits never mutate the imported module data.
 function seedQuiz() {
@@ -97,7 +98,7 @@ export default function QuizEditor({ onAuthError }) {
       setSaved(true)
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
-      else alert('Kaydedilemedi, tekrar deneyin.')
+      else await alertDialog('Kaydedilemedi, tekrar deneyin.')
     } finally {
       setSaving(false)
     }

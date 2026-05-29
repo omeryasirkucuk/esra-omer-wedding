@@ -20,8 +20,8 @@ function ScrollCue() {
       aria-label="Aşağı kaydır"
       className="absolute bottom-5 left-0 right-0 flex flex-col items-center animate-bob"
     >
-      <span className="label-gold">Kaydır</span>
-      <span className="text-gold text-xl leading-none">⌄</span>
+      <span className="label-gold" style={{ color: '#8a6d2c' }}>Kaydır</span>
+      <span className="text-xl leading-none" style={{ color: '#8a6d2c' }}>⌄</span>
     </button>
   )
 }
@@ -150,8 +150,8 @@ export default function Deck() {
           }
           className="mt-10 flex flex-col items-center gap-0.5"
         >
-          <span className="text-gold text-xl leading-none">⌃</span>
-          <span className="label-gold">En Üste Çık</span>
+          <span className="text-xl leading-none" style={{ color: '#8a6d2c' }}>⌃</span>
+          <span className="label-gold" style={{ color: '#8a6d2c' }}>En Üste Çık</span>
         </button>
       </Panel>
     </div>

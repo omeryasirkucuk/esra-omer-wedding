@@ -1,12 +1,20 @@
 // Albums panel: grouped by uploader. Each section shows the uploader name and
 // their non-deleted media count, then a responsive thumbnail grid. Each thumb
 // can be deleted (soft-delete on the server, removed locally on success).
+//
+// A "Seç" selection mode lets the admin pick thumbnails across uploaders and
+// bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
 import { useEffect, useState } from 'react'
 import { getUploaders, deleteUpload, mediaUrl } from '../adminApi'
+import { confirmDialog, alertDialog } from '../../lib/confirm.js'
+
+const selKey = (slug, id) => `${slug}::${id}`
 
 export default function Albums({ onAuthError }) {
   const [uploaders, setUploaders] = useState(null)
   const [error, setError] = useState(false)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState(() => new Set())
 
   useEffect(() => {
     let alive = true
@@ -21,19 +29,62 @@ export default function Albums({ onAuthError }) {
     }
   }, [onAuthError])
 
+  function exitSelection() {
+    setSelecting(false)
+    setSelected(new Set())
+  }
+
+  function toggleSelected(slug, id) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      const key = selKey(slug, id)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Drop one item from local state (used after a successful server delete).
+  function dropFromState(slug, id) {
+    setUploaders((prev) =>
+      prev.map((u) =>
+        u.slug === slug ? { ...u, items: u.items.filter((it) => it.id !== id) } : u,
+      ),
+    )
+  }
+
   // Remove an item from local state after a successful server delete.
   async function handleDelete(slug, id) {
     try {
       await deleteUpload(slug, id)
-      setUploaders((prev) =>
-        prev.map((u) =>
-          u.slug === slug ? { ...u, items: u.items.filter((it) => it.id !== id) } : u,
-        ),
-      )
+      dropFromState(slug, id)
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
-      else alert('Silinemedi, tekrar deneyin.')
+      else await alertDialog('Silinemedi, tekrar deneyin.')
     }
+  }
+
+  async function handleBulkDelete() {
+    const keys = [...selected]
+    if (keys.length === 0) return
+    if (!(await confirmDialog(`${keys.length} medyayı silmek istiyor musun?`))) return
+
+    let authFailed = false
+    for (const key of keys) {
+      const [slug, id] = key.split('::')
+      try {
+        await deleteUpload(slug, id)
+        dropFromState(slug, id)
+      } catch (e) {
+        if (e.name === 'AuthError') {
+          authFailed = true
+          break
+        }
+        // Skip a single failure and keep going with the rest.
+      }
+    }
+    exitSelection()
+    if (authFailed) onAuthError()
   }
 
   if (error) return <p className="text-muted text-center py-10">Veriler yüklenemedi.</p>
@@ -47,7 +98,32 @@ export default function Albums({ onAuthError }) {
 
   return (
     <div className="scroll-gold overflow-auto max-h-[74vh] pr-1">
-      <p className="label mb-4">{grandTotal} medya</p>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <p className="label">{grandTotal} medya</p>
+        {selecting ? (
+          <button type="button" onClick={exitSelection} className="label-gold">
+            Vazgeç
+          </button>
+        ) : (
+          <button type="button" onClick={() => setSelecting(true)} className="label-gold">
+            Seç
+          </button>
+        )}
+      </div>
+
+      {selecting && (
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 mb-4 rounded-full border border-line bg-surface/90 backdrop-blur px-4 py-2">
+          <span className="label">{selected.size} seçili</span>
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            disabled={selected.size === 0}
+            className="btn-lux disabled:opacity-40"
+          >
+            Seçilenleri Sil
+          </button>
+        </div>
+      )}
 
       <div className="space-y-8">
         {uploaders.map((u) => {
@@ -63,6 +139,9 @@ export default function Albums({ onAuthError }) {
                   <Thumb
                     key={it.id}
                     item={it}
+                    selecting={selecting}
+                    selected={selected.has(selKey(u.slug, it.id))}
+                    onToggle={() => toggleSelected(u.slug, it.id)}
                     onDelete={() => handleDelete(u.slug, it.id)}
                   />
                 ))}
@@ -75,11 +154,17 @@ export default function Albums({ onAuthError }) {
   )
 }
 
-function Thumb({ item, onDelete }) {
+function Thumb({ item, onDelete, selecting, selected, onToggle }) {
   const isVideo = item.type === 'video'
   const src = mediaUrl(item.url)
   return (
-    <div className="relative group card-soft overflow-hidden aspect-square">
+    <button
+      type="button"
+      onClick={() => selecting && onToggle()}
+      className={`relative group card-soft overflow-hidden aspect-square block w-full ${
+        selecting ? 'cursor-pointer' : 'cursor-default'
+      } ${selected ? 'ring-2 ring-gold' : ''}`}
+    >
       {isVideo ? (
         <>
           <video src={src} className="w-full h-full object-cover" preload="metadata" muted />
@@ -95,14 +180,36 @@ function Thumb({ item, onDelete }) {
           className="w-full h-full object-cover"
         />
       )}
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label="Sil"
-        className="absolute top-1 right-1 w-7 h-7 rounded-full bg-surface/90 border border-line flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition"
-      >
-        🗑
-      </button>
-    </div>
+
+      {selecting ? (
+        <>
+          {selected && <span className="absolute inset-0 bg-primary/30 pointer-events-none" />}
+          <span
+            className={`absolute top-1 right-1 w-7 h-7 rounded-full flex items-center justify-center text-white pointer-events-none ${
+              selected ? 'bg-gold' : 'bg-black/30 border border-white/70'
+            }`}
+          >
+            {selected && (
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+        </>
+      ) : (
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label="Sil"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-surface/90 border border-line flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition"
+        >
+          🗑
+        </span>
+      )}
+    </button>
   )
 }

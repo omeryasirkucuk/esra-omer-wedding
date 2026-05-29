@@ -8,7 +8,7 @@ import Sprig from '../../components/Sprig.jsx'
 import { api } from '../../lib/api.js'
 import { getUploaderId } from '../../lib/identity.js'
 
-const TOP_N = 8
+const TOP_N = 10
 // One delayed re-fetch so the just-submitted score is reflected even if the
 // first request raced ahead of the POST landing.
 const REFETCH_DELAY_MS = 1200
@@ -55,14 +55,23 @@ export default function EndScoreboard({ game, myLabel }) {
     }
   }, [])
 
-  const rows =
+  // Full ranking (best-per-player, score desc) so the current player's REAL
+  // rank is known even when they fall outside the visible top list.
+  const ranked =
     scores === null
       ? []
-      : bestPerPlayer(scores.filter((s) => s && s.game === game))
-          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-          .slice(0, TOP_N)
+      : bestPerPlayer(scores.filter((s) => s && s.game === game)).sort(
+          (a, b) => (b.score ?? 0) - (a.score ?? 0)
+        )
 
-  const myRank = rows.findIndex((r) => r.uploaderId === myId)
+  const rows = ranked.slice(0, TOP_N)
+
+  // 0-based index of the current player in the full ranking, or -1 if absent.
+  const myRankIndex = ranked.findIndex((r) => r.uploaderId === myId)
+  const inTop = myRankIndex !== -1 && myRankIndex < TOP_N
+  // When the player ranked but fell outside the top list, surface their own
+  // row below a separator so they still see exactly where they stand.
+  const myRow = myRankIndex !== -1 && !inTop ? ranked[myRankIndex] : null
 
   return (
     <div className="text-left mt-7 w-full max-w-md md:max-w-lg mx-auto">
@@ -118,12 +127,41 @@ export default function EndScoreboard({ game, myLabel }) {
               </motion.li>
             )
           })}
-        </ol>
-      )}
 
-      {/* If the player ranked but fell outside the top list, reassure them. */}
-      {scores !== null && !error && rows.length > 0 && myRank === -1 && (
-        <p className="label text-center mt-3">Skorun kaydedildi</p>
+          {/* Player outside the top list: a muted separator, then their own
+              row at its REAL rank, highlighted like the in-list "me" row. */}
+          {myRow && (
+            <>
+              <motion.li
+                key="gap"
+                aria-hidden="true"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.32, delay: 0.05 + rows.length * 0.05 }}
+                className="text-center text-muted font-display tracking-[0.4em] select-none py-0.5"
+              >
+                ⋯
+              </motion.li>
+              <motion.li
+                key={myRow.uploaderId || 'me'}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.32, delay: 0.1 + rows.length * 0.05 }}
+                className="flex items-baseline justify-between gap-3 rounded-lg px-2 py-1 font-display text-base md:text-lg text-primary"
+                style={{ background: 'var(--c-gold-soft, rgba(190,160,90,0.14))' }}
+              >
+                <span className="truncate flex items-baseline gap-1.5">
+                  <span className="lining-nums tabular-nums">{myRankIndex + 1}.</span>
+                  <span className="truncate">{myRow.displayName || 'Misafir'}</span>
+                  <span className="label-gold shrink-0 not-italic">sen</span>
+                </span>
+                <span className="label shrink-0 lining-nums tabular-nums">
+                  {myRow.label || myRow.score}
+                </span>
+              </motion.li>
+            </>
+          )}
+        </ol>
       )}
     </div>
   )

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getRsvps, addRsvp, updateRsvp, deleteRsvp } from '../adminApi'
 import { formatDateTime } from '../format'
+import { confirmDialog } from '../../lib/confirm.js'
 
 // Coerce a possibly-empty input value into a non-negative integer.
 function toCount(value) {
@@ -89,7 +90,7 @@ export default function Rsvps({ onAuthError }) {
 
   async function handleDelete(entry) {
     const name = `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim() || 'bu kayıt'
-    if (!window.confirm(`${name} silinsin mi?`)) return
+    if (!(await confirmDialog(`${name} silinsin mi?`))) return
     try {
       await deleteRsvp(entry.id)
       setRsvps((prev) => (prev || []).filter((r) => r.id !== entry.id))

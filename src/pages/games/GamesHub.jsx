@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Emblem from '../../components/Emblem.jsx'
 import IdentityPrompt from '../../components/IdentityPrompt.jsx'
+import ProfileChip from '../../components/ProfileChip.jsx'
 import { hasProfile } from '../../lib/identity.js'
 
 // Each tile maps to a route at /oyunlar/<id>. `symbol` is a small font-display
@@ -29,6 +30,10 @@ export default function GamesHub() {
 
   return (
     <div className="paper min-h-[100svh] px-6 pt-10 pb-16 flex flex-col items-center">
+      <ProfileChip
+        onChange={() => forceRerender((n) => n + 1)}
+        className="fixed right-4 top-4 z-40"
+      />
       <Emblem className="w-12 md:w-16" linkHome />
       <p className="label mt-4">Eğlence Köşesi</p>
       <h1 className="font-display italic text-primary text-2xl md:text-4xl text-center mt-2 leading-snug max-w-xs md:max-w-xl">

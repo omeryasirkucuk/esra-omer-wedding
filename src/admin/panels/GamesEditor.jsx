@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { getGamesContent, saveGamesContent, uploadPhoto, mediaUrl } from '../adminApi'
 import { quizQuestions } from '../../data/quiz'
+import { alertDialog } from '../../lib/confirm.js'
 
 // --- Seeds (kept in sync with the bundled defaults in the game pages) ------
 
@@ -257,7 +258,7 @@ export default function GamesEditor({ onAuthError }) {
       setSaved(true)
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
-      else alert('Kaydedilemedi, tekrar deneyin.')
+      else await alertDialog('Kaydedilemedi, tekrar deneyin.')
     } finally {
       setSaving(false)
     }
@@ -646,7 +647,7 @@ function PhotoRoundCard({
       onImage(res.url)
     } catch (err) {
       if (err.name === 'AuthError') onAuthError()
-      else alert('Görsel yüklenemedi, tekrar deneyin.')
+      else await alertDialog('Görsel yüklenemedi, tekrar deneyin.')
     } finally {
       setUploading(false)
     }
@@ -734,7 +735,7 @@ function MemorySlotCard({ index, url, onImage, onAuthError }) {
       onImage(res.url)
     } catch (err) {
       if (err.name === 'AuthError') onAuthError()
-      else alert('Görsel yüklenemedi, tekrar deneyin.')
+      else await alertDialog('Görsel yüklenemedi, tekrar deneyin.')
     } finally {
       setUploading(false)
     }
@@ -794,7 +795,7 @@ function PuzzleImageCard({ url, onImage, onAuthError }) {
       onImage(res.url)
     } catch (err) {
       if (err.name === 'AuthError') onAuthError()
-      else alert('Görsel yüklenemedi, tekrar deneyin.')
+      else await alertDialog('Görsel yüklenemedi, tekrar deneyin.')
     } finally {
       setUploading(false)
     }

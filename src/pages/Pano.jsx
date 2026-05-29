@@ -5,6 +5,7 @@ import Sprig from '../components/Sprig.jsx'
 import IdentityPrompt from '../components/IdentityPrompt.jsx'
 import Composer from './pano/Composer.jsx'
 import PostCard from './pano/PostCard.jsx'
+import ProfileChip from '../components/ProfileChip.jsx'
 import { api } from '../lib/api.js'
 import { getUploaderId, hasProfile } from '../lib/identity.js'
 
@@ -31,6 +32,8 @@ export default function Pano() {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(null)
   const [gateOpen, setGateOpen] = useState(false)
+  // Bump to re-render once a profile is saved (so the ProfileChip appears).
+  const [, forceRerender] = useState(0)
 
   const feedRef = useRef(null)
   const me = getUploaderId()
@@ -118,6 +121,7 @@ export default function Pano() {
     setGateOpen(false)
     const queued = queuedSubmit.current
     queuedSubmit.current = null
+    forceRerender((n) => n + 1)
     if (queued) doSubmit(queued.payload).then(queued.resolve)
   }
 
@@ -174,8 +178,14 @@ export default function Pano() {
   return (
     <div className="paper min-h-[100svh]">
       <div className="mx-auto flex min-h-[100svh] max-w-md md:max-w-lg flex-col px-5 pb-6 pt-7 md:pt-10">
-        <div className="flex justify-center">
+        <div className="relative flex justify-center">
           <Emblem className="w-12 md:w-16" linkHome />
+          {hasProfile() && (
+            <ProfileChip
+              onChange={() => forceRerender((n) => n + 1)}
+              className="absolute right-0 top-0"
+            />
+          )}
         </div>
         <p className="label mt-4 mb-4 text-center md:mt-5 md:text-[0.7rem]">Anı Panosu</p>
 

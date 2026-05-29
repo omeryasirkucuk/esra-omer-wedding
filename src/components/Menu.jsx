@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Emblem from './Emblem.jsx'
-import { primeMusic } from '../lib/music.js'
 
 const LINKS = [
   { label: 'Ana Sayfa', to: '/' },
@@ -15,8 +14,6 @@ const LINKS = [
 export default function Menu({ onClose }) {
   const navigate = useNavigate()
   const go = (to) => {
-    // Unlock the invitation music inside this tap so it carries onto /davetiye.
-    if (to === '/davetiye') primeMusic()
     onClose()
     navigate(to)
   }

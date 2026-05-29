@@ -5,9 +5,16 @@ import { saveProfile } from '../lib/identity.js'
 // "Seni Tanıyalım" — asked once, then remembered on the device (never re-asked
 // on refresh). Name is only a label; access is keyed by the device id, so two
 // guests with the same name never collide.
-export default function IdentityPrompt({ onDone }) {
-  const [firstName, setFirst] = useState('')
-  const [lastName, setLast] = useState('')
+export default function IdentityPrompt({
+  onDone,
+  initialFirst = '',
+  initialLast = '',
+  submitLabel = 'Devam',
+  title = 'Albüm ve panoda adın görünsün',
+}) {
+  // Prefill with current values when editing (so the guest edits, not retypes).
+  const [firstName, setFirst] = useState(initialFirst)
+  const [lastName, setLast] = useState(initialLast)
 
   const submit = (e) => {
     e.preventDefault()
@@ -20,7 +27,7 @@ export default function IdentityPrompt({ onDone }) {
       <Emblem size={48} linkHome />
       <p className="label mt-5 mb-1">Seni Tanıyalım</p>
       <p className="font-display italic text-primary text-xl mx-6 mb-7 leading-snug">
-        Albüm ve panoda adın görünsün
+        {title}
       </p>
       <form onSubmit={submit} className="w-full max-w-xs">
         <input
@@ -38,7 +45,7 @@ export default function IdentityPrompt({ onDone }) {
           className="w-full bg-transparent border-b border-[#cbb98c] py-2 mb-2 font-display text-primary text-[15px] placeholder:text-[#9aa6b0] focus:outline-none focus:border-gold"
         />
         <button type="submit" className="btn-lux w-full mt-6">
-          Devam
+          {submitLabel}
         </button>
       </form>
     </section>

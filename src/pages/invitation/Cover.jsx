@@ -71,7 +71,7 @@ export default function Cover({ onOpen }) {
       </div>
 
       <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center animate-bob">
-        <span className="label-gold">Davetiyeyi açmak için dokunun</span>
+        <span className="label-gold" style={{ color: '#8a6d2c' }}>Davetiyeyi açmak için dokunun</span>
       </div>
     </button>
   )

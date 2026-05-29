@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Emblem from '../components/Emblem.jsx'
 import { useSite } from '../lib/siteContent.jsx'
-import { primeMusic } from '../lib/music.js'
 
 // The QR landing page: one elegant hub linking to the four sections.
 const DOORS = [
@@ -72,7 +71,6 @@ export default function Home() {
           >
             <Link
               to={d.to}
-              onClick={d.to === '/davetiye' ? primeMusic : undefined}
               className="card-soft flex flex-col items-center justify-center py-6 md:py-9 px-2 h-full hover:-translate-y-0.5 transition-transform"
             >
               <span className="w-11 h-11 md:w-14 md:h-14 rounded-full border border-gold flex items-center justify-center text-primary mb-2 bg-gradient-to-b from-surface to-[#f4ecdd]">
