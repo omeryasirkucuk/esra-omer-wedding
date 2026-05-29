@@ -105,6 +105,11 @@ export const localStorageDriver = {
     return true
   },
 
+  // No presigning locally; the music falls back to a file in public/music.
+  async signKey() {
+    return null
+  },
+
   // Serves /media/<slug>/<file> straight from disk.
   mediaHandler(req, res) {
     const rel = req.params[0] || ''

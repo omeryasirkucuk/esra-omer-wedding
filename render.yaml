@@ -1,0 +1,28 @@
+# Render blueprint. In Render: New → Blueprint → connect this repo.
+# Set the two AWS secrets in the dashboard (they are not stored here).
+services:
+  - type: web
+    name: esra-omer-wedding
+    runtime: node
+    # "starter" stays always-on (no cold-start sleep on the wedding day).
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_BUCKET
+        value: omer-esra-wedding
+      - key: S3_REGION
+        value: eu-central-1
+      - key: MUSIC_KEY
+        value: music/davetiye-music.mp3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false

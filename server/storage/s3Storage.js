@@ -124,6 +124,13 @@ export const s3StorageDriver = {
     return true
   },
 
+  // Presign any bucket key (used for the invitation music).
+  async signKey(key) {
+    return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), {
+      expiresIn: 3600,
+    })
+  },
+
   // Redirect /media/<slug>/<file> to a short-lived presigned GET URL.
   async mediaHandler(req, res) {
     const rel = req.params[0] || ''

@@ -13,7 +13,8 @@ import { postsRouter } from './routes/posts.js'
 import { uploadsRouter } from './routes/uploads.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PORT = process.env.API_PORT || 8787
+// Render (and most hosts) inject PORT; fall back to API_PORT locally.
+const PORT = process.env.PORT || process.env.API_PORT || 8787
 const app = express()
 
 app.use(cors())
@@ -22,6 +23,22 @@ app.use(express.json({ limit: '1mb' }))
 // Uploaded media: resolved by the active storage driver (disk file locally,
 // presigned redirect on S3). Stored URLs are stable and never expire.
 app.get('/media/*', (req, res) => storage.mediaHandler(req, res))
+
+// Invitation background music. On S3 it 302-redirects to a presigned URL for
+// the private object; locally it falls back to a file under public/music.
+const MUSIC_KEY = process.env.MUSIC_KEY || 'music/davetiye-music.mp3'
+app.get('/api/music', async (_req, res) => {
+  try {
+    const url = await storage.signKey(MUSIC_KEY)
+    if (url) return res.redirect(302, url)
+  } catch (err) {
+    console.error('[music]', err)
+  }
+  // Local fallback (no S3): serve a file dropped in public/music if present.
+  const local = path.join(dist, 'music', 'davetiye-music.mp3')
+  if (fs.existsSync(local)) return res.sendFile(local)
+  res.status(404).end()
+})
 
 app.use('/api/rsvp', rsvpRouter)
 app.use('/api/posts', postsRouter)

@@ -3,9 +3,12 @@ import { AnimatePresence } from 'framer-motion'
 import Cover from './Cover.jsx'
 import Deck from './Deck.jsx'
 
-// Drop your track at public/music/song.mp3 — it plays only on this page,
-// fading in gently, with no on-screen control by design.
-const MUSIC_SRC = '/music/song.mp3'
+// Track is served from the bucket via /api/music (presigned). It plays only on
+// this page, fading in gently to a low background level, with no on-screen
+// control by design.
+const MUSIC_SRC = (import.meta.env.VITE_API_BASE || '') + '/api/music'
+// Soft background level — present but never loud.
+const TARGET_VOLUME = 0.35
 
 export default function Invitation() {
   const [opened, setOpened] = useState(false)
@@ -20,13 +23,13 @@ export default function Invitation() {
     audio.loop = true
     audio.play().then(
       () => {
-        const target = 0.8
-        const step = target / 50
+        // Gentle ~6s ramp from silence up to a soft background level.
+        const step = TARGET_VOLUME / 60
         const id = setInterval(() => {
           if (!audioRef.current) return clearInterval(id)
-          const next = Math.min(target, audioRef.current.volume + step)
+          const next = Math.min(TARGET_VOLUME, audioRef.current.volume + step)
           audioRef.current.volume = next
-          if (next >= target) clearInterval(id)
+          if (next >= TARGET_VOLUME) clearInterval(id)
         }, 100)
       },
       () => {
