@@ -1,0 +1,70 @@
+@import './theme/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--c-bg);
+    color: var(--c-ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Paper-like radial wash used across full-screen surfaces. */
+  .paper {
+    background: radial-gradient(circle at 30% 12%, #fbf7ee, #f4ecdd 70%, #efe6d4);
+  }
+}
+
+@layer components {
+  /* Small uppercase label, letterspaced — the recurring "EVLENİYORUZ" style. */
+  .label {
+    @apply font-sans font-light uppercase text-muted;
+    letter-spacing: 0.32em;
+    font-size: 0.62rem;
+  }
+  .label-gold {
+    @apply label;
+    color: var(--c-gold);
+  }
+  /* The shared button: thin gold outline on ivory (used everywhere). */
+  .btn-lux {
+    @apply font-sans uppercase inline-flex items-center justify-center gap-2;
+    letter-spacing: 0.2em;
+    font-size: 0.66rem;
+    color: var(--c-primary);
+    border: 1px solid var(--c-gold);
+    border-radius: 2px;
+    padding: 0.75rem 1.4rem;
+    background: linear-gradient(#fffdf8, #f6efe0);
+    transition: background 0.25s ease, transform 0.15s ease;
+  }
+  .btn-lux:hover {
+    background: linear-gradient(#fffefb, #efe6d2);
+  }
+  .btn-lux:active {
+    transform: translateY(1px);
+  }
+  .card-soft {
+    background: var(--c-surface);
+    border: 1px solid #e8dcbf;
+    border-radius: 14px;
+  }
+  /* Thin gold scrollbar for the long galleries / feed. */
+  .scroll-gold {
+    scrollbar-width: thin;
+    scrollbar-color: #cdb06a88 transparent;
+  }
+  .scroll-gold::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scroll-gold::-webkit-scrollbar-thumb {
+    background: #cdb06a88;
+    border-radius: 5px;
+  }
+}

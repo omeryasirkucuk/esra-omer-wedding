@@ -1,0 +1,17 @@
+/*
+ * Single source of truth for the palette ("B — Dusty Blue & Champagne").
+ * Every colour in the app references these variables through Tailwind, so
+ * changing the whole look later means editing only the values below.
+ */
+:root {
+  --c-bg: #fbf7ee;          /* warm ivory page background */
+  --c-surface: #fffdf8;     /* cards / raised surfaces */
+  --c-ink: #2f3e4d;         /* primary text */
+  --c-primary: #3f5871;     /* dusty blue — headings, buttons */
+  --c-primary-soft: #6b8299;
+  --c-gold: #c2a25c;        /* champagne gold — thin rules, accents */
+  --c-sage: #8a9a7b;        /* botanical green */
+  --c-rose: #b98ca0;        /* muted rose — small floral marks */
+  --c-muted: #6f7d89;       /* secondary / label text */
+  --c-line: #cdb06a55;      /* hairline borders (gold, translucent) */
+}

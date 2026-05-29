@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.log
+.npm-cache
+
+# Runtime data written by the local storage adapter (RSVP, posts, uploads).
+# This is guest data, never committed.
+/data
+/.superpowers
+.env
+.env.local
