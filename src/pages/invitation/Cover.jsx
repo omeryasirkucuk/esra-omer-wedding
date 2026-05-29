@@ -11,7 +11,7 @@ export default function Cover({ onOpen }) {
       type="button"
       onClick={onOpen}
       aria-label="Davetiyeyi aç"
-      className="fixed inset-0 z-10 w-full paper flex flex-col items-center justify-center px-7 text-center"
+      className="relative min-h-[100svh] w-full paper flex flex-col items-center justify-center px-7 text-center"
     >
       <div className="pointer-events-none absolute inset-3 rounded-2xl border border-line">
         <div className="absolute inset-1.5 rounded-2xl border border-[#cdb06a30]" />
