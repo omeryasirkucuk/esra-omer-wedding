@@ -54,6 +54,18 @@ export default function Emblem({ size = 52, tone = 'default', linkHome = false, 
           />
         </g>
       </g>
+      {/* drifting rose petals — subtle on tiny logos, lovely on the big one */}
+      <g fill="#c2a0b0">
+        <ellipse className="eo-petal" cx="38" cy="24" rx="1.5" ry="2.2" style={{ '--eo-drift': '-5px', '--eo-fall': '54px', animationDelay: '0s', animationDuration: '6s' }} />
+        <ellipse className="eo-petal" cx="52" cy="22" rx="1.3" ry="2" style={{ '--eo-drift': '6px', '--eo-fall': '56px', animationDelay: '2s', animationDuration: '6.8s' }} />
+        <ellipse className="eo-petal" cx="45" cy="20" rx="1.4" ry="2.1" style={{ '--eo-drift': '2px', '--eo-fall': '58px', animationDelay: '4s', animationDuration: '7.2s' }} />
+      </g>
+      {/* gold sparkles near the crown */}
+      <g fill="#c2a25c">
+        <circle className="eo-sparkle" cx="45" cy="13" r="1.1" style={{ animationDelay: '0.3s' }} />
+        <circle className="eo-sparkle" cx="35" cy="20" r="0.9" style={{ animationDelay: '1.4s' }} />
+        <circle className="eo-sparkle" cx="56" cy="20" r="0.9" style={{ animationDelay: '2.1s' }} />
+      </g>
     </svg>
   )
 

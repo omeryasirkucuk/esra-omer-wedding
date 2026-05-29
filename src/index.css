@@ -95,7 +95,7 @@
 @keyframes eoPetalFall {
   0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
   12%  { opacity: 0.85; }
-  100% { transform: translate(var(--eo-drift, 10px), 150px) rotate(260deg); opacity: 0; }
+  100% { transform: translate(var(--eo-drift, 10px), var(--eo-fall, 150px)) rotate(260deg); opacity: 0; }
 }
 /* Gold sparkle twinkle. */
 @keyframes eoSparkle {

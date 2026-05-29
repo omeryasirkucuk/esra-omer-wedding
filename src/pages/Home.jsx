@@ -54,7 +54,7 @@ export default function Home() {
   const wedding = useSite()
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center">
-      <Emblem className="w-20 md:w-28" />
+      <Emblem className="w-28 md:w-44" />
       <h1 className="font-script text-primary text-5xl md:text-7xl mt-4 leading-none">
         {wedding.bride} &amp; {wedding.groom}
       </h1>
