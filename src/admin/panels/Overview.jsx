@@ -37,7 +37,7 @@ export default function Overview({ onAuthError }) {
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
       {CARDS.map(({ key, label }) => (
         <div key={key} className="card-soft p-4 sm:p-5 text-center">
-          <div className="font-display text-3xl sm:text-4xl text-primary leading-none">
+          <div className="font-display text-3xl sm:text-4xl text-primary leading-none lining-nums tabular-nums">
             {data[key] ?? 0}
           </div>
           <div className="label mt-2">{label}</div>

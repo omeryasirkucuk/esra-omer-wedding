@@ -1,0 +1,130 @@
+// Shown on a single game's end screen (replaces the old standalone scoreboard
+// and the "view scoreboard" link). Renders the player's own result big, then
+// that game's leaderboard — best score per player, ranked, with the current
+// player's row highlighted. On-brand: ivory/gold/dusty-blue, font-display.
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import Sprig from '../../components/Sprig.jsx'
+import { api } from '../../lib/api.js'
+import { getUploaderId } from '../../lib/identity.js'
+
+const TOP_N = 8
+// One delayed re-fetch so the just-submitted score is reflected even if the
+// first request raced ahead of the POST landing.
+const REFETCH_DELAY_MS = 1200
+
+// Keep only each player's best attempt (highest score; newest on a tie), so a
+// player who replays appears once with their best result.
+function bestPerPlayer(list) {
+  const map = new Map()
+  for (const s of list) {
+    const key = s.uploaderId || `name:${s.displayName || ''}`
+    const prev = map.get(key)
+    const better =
+      !prev ||
+      (s.score ?? 0) > (prev.score ?? 0) ||
+      ((s.score ?? 0) === (prev.score ?? 0) &&
+        Date.parse(s.createdAt || 0) > Date.parse(prev.createdAt || 0))
+    if (better) map.set(key, s)
+  }
+  return [...map.values()]
+}
+
+export default function EndScoreboard({ game, myLabel }) {
+  const [scores, setScores] = useState(null) // null = loading
+  const [error, setError] = useState(false)
+  const myId = getUploaderId()
+
+  useEffect(() => {
+    let alive = true
+    const load = () =>
+      api
+        .getScores()
+        .then((d) => {
+          if (alive) setScores(Array.isArray(d) ? d : d?.scores || [])
+        })
+        .catch(() => {
+          if (alive) setError(true)
+        })
+    load()
+    // Re-fetch once shortly after mount so a just-submitted score appears.
+    const t = setTimeout(load, REFETCH_DELAY_MS)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [])
+
+  const rows =
+    scores === null
+      ? []
+      : bestPerPlayer(scores.filter((s) => s && s.game === game))
+          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+          .slice(0, TOP_N)
+
+  const myRank = rows.findIndex((r) => r.uploaderId === myId)
+
+  return (
+    <div className="text-left mt-7 w-full max-w-md md:max-w-lg mx-auto">
+      {/* Your own result, big. */}
+      <div className="text-center">
+        <p className="label-gold">Senin skorun</p>
+        <p className="font-display italic text-primary text-3xl md:text-4xl mt-1 lining-nums tabular-nums">
+          {myLabel}
+        </p>
+      </div>
+
+      <Sprig width={120} className="mx-auto mt-3" />
+
+      {/* The game's leaderboard. */}
+      <p className="label text-center mt-3">Sıralama</p>
+
+      {scores === null && !error && (
+        <p className="label text-center mt-4">Yükleniyor…</p>
+      )}
+      {error && (
+        <p className="label text-center mt-4">Sıralama şu an yüklenemedi</p>
+      )}
+
+      {scores !== null && !error && rows.length === 0 && (
+        <p className="label text-center mt-4">İlk sıralayan sen ol!</p>
+      )}
+
+      {rows.length > 0 && (
+        <ol className="scroll-gold card-soft mt-3 px-4 py-3 md:px-6 md:py-4 max-h-[46svh] overflow-y-auto flex flex-col gap-1.5">
+          {rows.map((row, i) => {
+            const isMe = row.uploaderId === myId
+            return (
+              <motion.li
+                key={row.uploaderId || `${game}-${i}`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.32, delay: 0.05 + i * 0.05 }}
+                className={`flex items-baseline justify-between gap-3 rounded-lg px-2 py-1 font-display text-base md:text-lg ${
+                  isMe ? 'text-primary' : 'text-primary/90'
+                }`}
+                style={isMe ? { background: 'var(--c-gold-soft, rgba(190,160,90,0.14))' } : undefined}
+              >
+                <span className="truncate flex items-baseline gap-1.5">
+                  <span className="lining-nums tabular-nums">{i + 1}.</span>
+                  <span className="truncate">{row.displayName || 'Misafir'}</span>
+                  {isMe && (
+                    <span className="label-gold shrink-0 not-italic">sen</span>
+                  )}
+                </span>
+                <span className="label shrink-0 lining-nums tabular-nums">
+                  {row.label || row.score}
+                </span>
+              </motion.li>
+            )
+          })}
+        </ol>
+      )}
+
+      {/* If the player ranked but fell outside the top list, reassure them. */}
+      {scores !== null && !error && rows.length > 0 && myRank === -1 && (
+        <p className="label text-center mt-3">Skorun kaydedildi</p>
+      )}
+    </div>
+  )
+}

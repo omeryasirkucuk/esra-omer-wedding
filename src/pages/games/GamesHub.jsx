@@ -52,13 +52,6 @@ export default function GamesHub() {
           </Link>
         ))}
       </div>
-
-      <Link
-        to="/oyunlar/skor"
-        className="btn-lux no-underline mt-9"
-      >
-        Skor Tablosu
-      </Link>
     </div>
   )
 }

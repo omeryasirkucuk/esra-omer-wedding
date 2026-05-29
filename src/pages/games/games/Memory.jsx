@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
-import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import EndScoreboard from '../EndScoreboard.jsx'
 import { api } from '../../../lib/api.js'
 
 const PAIR_COUNT = 8 // 4x4 board = 8 pairs
@@ -74,12 +74,15 @@ export default function Memory() {
     }
   }, [])
 
+  // Result label shared by the score submission and the end scoreboard.
+  const resultLabel = `${moves} hamle · ${formatTime(seconds)}`
+
   // Submit the final result exactly once on completion. Higher is better:
   // fewer moves and less time keep the score up.
-  const submitted = useScoreSubmit(won, () => ({
+  useScoreSubmit(won, () => ({
     game: 'eslestirme',
     score: Math.max(0, 1000 - moves * 10 - seconds * 2),
-    label: `${moves} hamle · ${formatTime(seconds)}`,
+    label: resultLabel,
     detail: { hamle: moves, saniye: seconds },
   }))
 
@@ -149,10 +152,7 @@ export default function Memory() {
       {won && (
         <div className="text-center mt-8 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl">Tebrikler!</p>
-          <p className="label mt-1">
-            {moves} hamle · {formatTime(seconds)}
-          </p>
-          <ScoreSubmitted submitted={submitted} />
+          <EndScoreboard game="eslestirme" myLabel={resultLabel} />
           <GameOverActions onRestart={reset} />
         </div>
       )}

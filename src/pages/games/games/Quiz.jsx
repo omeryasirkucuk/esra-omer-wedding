@@ -9,7 +9,7 @@ import GameOverActions from '../GameOverActions.jsx'
 import { quizQuestions } from '../../../data/quiz.js'
 import { api } from '../../../lib/api.js'
 import { useScoreSubmit } from '../useScoreSubmit.js'
-import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import EndScoreboard from '../EndScoreboard.jsx'
 
 export default function Quiz() {
   // Prefer admin-edited questions; fall back to the bundled defaults.
@@ -35,11 +35,14 @@ export default function Quiz() {
   const current = quizQuestionsActive[index]
   const answered = selected !== null
 
+  // Result label shared by the score submission and the end scoreboard.
+  const resultLabel = `${correct}/${total} doğru`
+
   // Submit the final result exactly once when the quiz ends.
-  const submitted = useScoreSubmit(done, () => ({
+  useScoreSubmit(done, () => ({
     game: 'cifti-tani',
     score: correct,
-    label: `${correct}/${total} doğru`,
+    label: resultLabel,
     detail: answers,
   }))
 
@@ -81,9 +84,9 @@ export default function Quiz() {
       <GameShell label={<span lang="en">Quiz</span>} title="Çifti Tanı">
         <div className="text-center mt-4 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl md:text-3xl">
-            Bitti — {correct}/{total} doğru
+            Bitti
           </p>
-          <ScoreSubmitted submitted={submitted} />
+          <EndScoreboard game="cifti-tani" myLabel={resultLabel} />
           <GameOverActions onRestart={restart} />
         </div>
       </GameShell>

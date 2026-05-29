@@ -6,7 +6,7 @@ import { api } from '../../../lib/api.js'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
-import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import EndScoreboard from '../EndScoreboard.jsx'
 
 // A soft gradient used as a placeholder tile when a round has no image.
 const FALLBACK_GRADIENT = 'linear-gradient(135deg,#eef0e6,#e6e4d4 60%,#e9ddc6)'
@@ -84,11 +84,14 @@ export default function PhotoGuess() {
   const current = rounds[index]
   const answered = selected !== null
 
+  // Result label shared by the score submission and the end scoreboard.
+  const resultLabel = `${correct}/${total} doğru`
+
   // Submit the final result exactly once when the game ends.
-  const submitted = useScoreSubmit(done, () => ({
+  useScoreSubmit(done, () => ({
     game: 'foto-tahmin',
     score: correct,
-    label: `${correct}/${total} doğru`,
+    label: resultLabel,
     detail: answers,
   }))
 
@@ -127,9 +130,9 @@ export default function PhotoGuess() {
       <GameShell label="Bil bakalım" title="Foto Tahmin">
         <div className="text-center mt-4 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl md:text-3xl">
-            Bitti — {correct}/{total} doğru
+            Bitti
           </p>
-          <ScoreSubmitted submitted={submitted} />
+          <EndScoreboard game="foto-tahmin" myLabel={resultLabel} />
           <GameOverActions onRestart={restart} />
         </div>
       </GameShell>

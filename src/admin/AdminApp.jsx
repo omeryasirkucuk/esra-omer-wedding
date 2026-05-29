@@ -114,42 +114,58 @@ function Dashboard({ onAuthError }) {
   const ActivePanel = TABS.find((t) => t.id === active).Panel
 
   return (
-    <div className="paper min-h-screen">
-      {/* Top bar */}
+    <div className="paper min-h-screen overflow-x-hidden">
+      {/* Top bar — wraps to a second row on narrow screens so nothing is cut. */}
       <header className="border-b border-line bg-surface/70 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Emblem className="w-10 md:w-12" />
-          <span className="font-display text-lg sm:text-xl text-primary flex-1 truncate">
-            Esra &amp; Ömer · Yönetim
+        <div className="w-full max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Emblem className="w-9 sm:w-10 md:w-12 shrink-0" />
+          {/* Compact title under sm, full brand from sm up. */}
+          <span className="font-display text-lg sm:text-xl text-primary flex-1 min-w-0 truncate">
+            <span className="sm:hidden">Yönetim</span>
+            <span className="hidden sm:inline">Esra &amp; Ömer · Yönetim</span>
           </span>
-          <a href={guestHomeHref()} className="btn-lux no-underline">
+          <a
+            href={guestHomeHref()}
+            className="btn-lux no-underline text-[0.7rem] px-3 py-1.5 sm:text-xs sm:px-4 sm:py-2 shrink-0"
+          >
             Ana Sayfa
           </a>
-          <button type="button" className="btn-lux" onClick={onAuthError}>
+          <button
+            type="button"
+            className="btn-lux text-[0.7rem] px-3 py-1.5 sm:text-xs sm:px-4 sm:py-2 shrink-0"
+            onClick={onAuthError}
+          >
             Çıkış
           </button>
         </div>
 
-        {/* Tab bar */}
-        <nav className="max-w-5xl mx-auto px-2 flex gap-1 overflow-x-auto scroll-gold">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActive(t.id)}
-              className={`font-sans uppercase text-xs tracking-[0.18em] px-3 sm:px-4 py-3 whitespace-nowrap border-b-2 transition ${
-                active === t.id
-                  ? 'border-gold text-primary'
-                  : 'border-transparent text-muted hover:text-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        {/* Tab bar — single clean underline (container hairline) with the active
+            tab marked by gold text + a short inset indicator that doesn't clash
+            with the border. Smooth horizontal scroll, first tab not clipped. */}
+        <nav
+          className="w-full max-w-5xl mx-auto border-b border-line overflow-x-auto scroll-gold"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="flex gap-1 px-4">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActive(t.id)}
+                className={`relative font-sans uppercase text-xs tracking-[0.18em] px-3 sm:px-4 py-3 whitespace-nowrap transition ${
+                  active === t.id
+                    ? 'text-gold after:absolute after:left-3 after:right-3 sm:after:left-4 sm:after:right-4 after:-bottom-px after:h-0.5 after:bg-gold after:rounded'
+                    : 'text-muted hover:text-primary'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </nav>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
+      <main className="w-full max-w-5xl mx-auto px-4 py-6 sm:py-8">
         <ActivePanel onAuthError={onAuthError} />
       </main>
     </div>

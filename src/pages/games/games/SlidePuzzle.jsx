@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
-import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import EndScoreboard from '../EndScoreboard.jsx'
 import { api } from '../../../lib/api.js'
 
 function formatTime(totalSeconds) {
@@ -94,12 +94,15 @@ export default function SlidePuzzle() {
     return () => clearInterval(t)
   }, [started, solved])
 
+  // Result label shared by the score submission and the end scoreboard.
+  const resultLabel = `${moves} hamle · ${formatTime(seconds)}`
+
   // Submit the final result exactly once on completion. Higher is better:
   // fewer moves and less time keep the score up.
-  const submitted = useScoreSubmit(solved, () => ({
+  useScoreSubmit(solved, () => ({
     game: 'yapboz',
     score: Math.max(0, 1000 - moves * 5 - seconds * 2),
-    label: `${moves} hamle · ${formatTime(seconds)}`,
+    label: resultLabel,
     detail: { hamle: moves, saniye: seconds },
   }))
 
@@ -155,10 +158,7 @@ export default function SlidePuzzle() {
       {solved ? (
         <div className="text-center mt-7 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl md:text-3xl">Tamamlandı!</p>
-          <p className="label mt-1">
-            {moves} hamle · {formatTime(seconds)}
-          </p>
-          <ScoreSubmitted submitted={submitted} />
+          <EndScoreboard game="yapboz" myLabel={resultLabel} />
           <GameOverActions onRestart={reset} />
         </div>
       ) : (

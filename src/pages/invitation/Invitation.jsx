@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import Deck from './Deck.jsx'
 
-// The track plays only on this page, starting as soon as it opens and fading in
-// to a soft background level. We fetch ONE stable media URL first (a single
-// presigned S3 URL) so mobile range-requests don't churn through redirects —
-// that was cutting the music off after a second on phones. No on-screen control.
+// Background music for the invitation only. iOS will not play audio *audibly*
+// until a real user gesture, and trying to autoplay on mount produced a silent
+// 1-second blip on iPhone. So we prepare the audio up front and start it on the
+// guest's first interaction (tap/scroll-tap) — which happens within a moment of
+// landing. Fades in to a soft level; no on-screen control by design.
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 const TARGET_VOLUME = 0.35
 
@@ -13,13 +14,12 @@ export default function Invitation() {
 
   useEffect(() => {
     let cancelled = false
-    // Use a JS Audio object (not a DOM <audio>) so it can outlive this
-    // component during the fade-out when the guest leaves the page.
+    let started = false
+    let wantPlaying = true
     const audio = new Audio()
     audio.loop = true
-    audio.volume = 0
     audio.preload = 'auto'
-    let wantPlaying = true
+    audio.volume = 0
 
     const clearRamp = () => {
       if (rampRef.current) clearInterval(rampRef.current)
@@ -37,36 +37,37 @@ export default function Invitation() {
         if (i >= steps) clearRamp()
       }, 100)
     }
-    const playAndFade = () => audio.play().then(() => fadeTo(TARGET_VOLUME, 6000)).catch(() => {})
-
-    // If the browser blocks autoplay, start on the first touch instead.
-    let removeGesture = () => {}
-    const armGesture = () => {
-      const onGesture = () => {
-        playAndFade()
-        removeGesture()
-      }
-      ;['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.addEventListener(e, onGesture))
-      removeGesture = () =>
-        ['pointerdown', 'touchstart', 'keydown'].forEach((e) => window.removeEventListener(e, onGesture))
+    const play = () => {
+      if (!audio.src) return
+      audio.play().then(() => fadeTo(TARGET_VOLUME, 4000)).catch(() => {})
     }
 
-    // Fetch the single stable URL first, set it once, then start playback.
+    // Fetch the single stable media URL once (no per-range redirect churn).
     fetch(`${API_BASE}/api/music-url`)
       .then((r) => r.json())
       .then(({ url }) => {
         if (cancelled || !url) return
         audio.src = url.startsWith('/') ? API_BASE + url : url
-        audio.play().then(() => fadeTo(TARGET_VOLUME, 6000), () => armGesture())
+        if (started) play() // gesture already happened while we were fetching
       })
       .catch(() => {})
+
+    // Start audibly on the first user gesture (the reliable iOS path).
+    const events = ['touchend', 'pointerup', 'click', 'keydown']
+    const onGesture = () => {
+      if (started) return
+      started = true
+      play()
+      events.forEach((e) => window.removeEventListener(e, onGesture))
+    }
+    events.forEach((e) => window.addEventListener(e, onGesture, { passive: true }))
 
     // Pause when the screen locks / tab is hidden; resume when visible again.
     const onVisibility = () => {
       if (document.hidden) {
         clearRamp()
         audio.pause()
-      } else if (wantPlaying && audio.paused) {
+      } else if (started && wantPlaying && audio.paused) {
         audio.play().then(() => fadeTo(TARGET_VOLUME, 1500)).catch(() => {})
       }
     }
@@ -76,8 +77,8 @@ export default function Invitation() {
     return () => {
       cancelled = true
       wantPlaying = false
+      events.forEach((e) => window.removeEventListener(e, onGesture))
       document.removeEventListener('visibilitychange', onVisibility)
-      removeGesture()
       clearRamp()
       const steps = 14
       const start = audio.volume

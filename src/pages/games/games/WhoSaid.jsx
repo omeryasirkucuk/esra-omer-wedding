@@ -6,7 +6,7 @@ import { api } from '../../../lib/api.js'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
-import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import EndScoreboard from '../EndScoreboard.jsx'
 
 // Bundled fallback quotes, used when nothing is stored yet. Each item carries a
 // `who` display label ('Esra' | 'Ömer').
@@ -57,11 +57,14 @@ export default function WhoSaid() {
   const current = rounds[index]
   const answered = picked !== null
 
+  // Result label shared by the score submission and the end scoreboard.
+  const resultLabel = `${correct}/${total} doğru`
+
   // Submit the final result exactly once when the game ends.
-  const submitted = useScoreSubmit(done, () => ({
+  useScoreSubmit(done, () => ({
     game: 'kim-demis',
     score: correct,
-    label: `${correct}/${total} doğru`,
+    label: resultLabel,
     detail: answers,
   }))
 
@@ -95,9 +98,9 @@ export default function WhoSaid() {
       <GameShell label="Esra mı Ömer mi" title="Kim Demiş?">
         <div className="text-center mt-4 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl md:text-3xl">
-            Bitti — {correct}/{total} doğru
+            Bitti
           </p>
-          <ScoreSubmitted submitted={submitted} />
+          <EndScoreboard game="kim-demis" myLabel={resultLabel} />
           <GameOverActions onRestart={restart} />
         </div>
       </GameShell>

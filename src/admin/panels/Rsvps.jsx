@@ -121,7 +121,7 @@ export default function Rsvps({ onAuthError }) {
             type="text"
             value={form.firstName}
             onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-            className="w-full bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
           />
         </Field>
         <Field label="Soyad" className="flex-1 min-w-[7rem]">
@@ -129,7 +129,7 @@ export default function Rsvps({ onAuthError }) {
             type="text"
             value={form.lastName}
             onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-            className="w-full bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
           />
         </Field>
         <Field label="Yetişkin" className="w-full sm:w-20">
@@ -138,7 +138,7 @@ export default function Rsvps({ onAuthError }) {
             min="0"
             value={form.guests}
             onChange={(e) => setForm((f) => ({ ...f, guests: e.target.value }))}
-            className="w-full bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
           />
         </Field>
         <Field label="Çocuk" className="w-full sm:w-20">
@@ -147,7 +147,7 @@ export default function Rsvps({ onAuthError }) {
             min="0"
             value={form.children}
             onChange={(e) => setForm((f) => ({ ...f, children: e.target.value }))}
-            className="w-full bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
           />
         </Field>
         <button type="submit" className="btn-lux w-full sm:w-auto" disabled={adding}>
@@ -175,15 +175,33 @@ export default function Rsvps({ onAuthError }) {
                 key={r.id}
                 className="px-4 py-3 border-b border-line/60 last:border-0 flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] sm:gap-4 sm:items-center"
               >
-                <span className="font-display text-lg text-primary flex items-center gap-2">
-                  {r.firstName} {r.lastName}
-                  {r.addedByAdmin && (
-                    <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5">
-                      elle eklendi
+                {/* Mobile: name on the left, delete pinned to the right of the
+                    same line. From sm up the delete button moves to its grid
+                    cell via the `sm:contents` wrapper below. */}
+                <div className="flex items-center justify-between gap-2 sm:block">
+                  <span className="font-display text-lg text-primary flex items-center gap-2 min-w-0">
+                    <span className="truncate">
+                      {r.firstName} {r.lastName}
                     </span>
-                  )}
-                </span>
-                <div className="flex gap-4 mt-2 sm:mt-0 sm:contents">
+                    {r.addedByAdmin && (
+                      <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
+                        elle eklendi
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(r)}
+                    aria-label="Sil"
+                    title="Sil"
+                    className="shrink-0 text-muted hover:text-rose transition-colors sm:hidden"
+                  >
+                    🗑
+                  </button>
+                </div>
+                {/* Counts + date. On mobile they wrap onto their own line(s);
+                    from sm up `sm:contents` drops them into the grid columns. */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 sm:mt-0 sm:contents">
                   <label className="flex items-center gap-1 sm:justify-end sm:w-20">
                     <span className="label sm:hidden">Yetişkin:</span>
                     <input
@@ -192,7 +210,7 @@ export default function Rsvps({ onAuthError }) {
                       defaultValue={r.guests ?? 0}
                       key={`g-${r.id}-${r.guests ?? 0}`}
                       onBlur={(e) => handleCountBlur(r, 'guests', e.target.value)}
-                      className="w-16 bg-bg border border-line rounded px-2 py-1 text-ink text-right outline-none focus:border-gold"
+                      className="w-16 box-border bg-bg border border-line rounded px-2 py-1 text-ink text-right lining-nums tabular-nums outline-none focus:border-gold"
                     />
                   </label>
                   <label className="flex items-center gap-1 sm:justify-end sm:w-20">
@@ -203,18 +221,19 @@ export default function Rsvps({ onAuthError }) {
                       defaultValue={r.children ?? 0}
                       key={`c-${r.id}-${r.children ?? 0}`}
                       onBlur={(e) => handleCountBlur(r, 'children', e.target.value)}
-                      className="w-16 bg-bg border border-line rounded px-2 py-1 text-ink text-right outline-none focus:border-gold"
+                      className="w-16 box-border bg-bg border border-line rounded px-2 py-1 text-ink text-right lining-nums tabular-nums outline-none focus:border-gold"
                     />
                   </label>
-                  <span className="text-muted text-sm sm:text-right sm:w-40 sm:self-center">
+                  <span className="text-muted text-sm whitespace-nowrap basis-full sm:basis-auto sm:text-right sm:w-40 sm:self-center lining-nums tabular-nums">
                     {formatDateTime(r.createdAt)}
                   </span>
+                  {/* Desktop-only delete cell (mobile uses the header-row one). */}
                   <button
                     type="button"
                     onClick={() => handleDelete(r)}
                     aria-label="Sil"
                     title="Sil"
-                    className="text-muted hover:text-rose transition-colors sm:w-8 sm:text-center"
+                    className="hidden sm:block text-muted hover:text-rose transition-colors sm:w-8 sm:text-center"
                   >
                     🗑
                   </button>
@@ -237,7 +256,11 @@ function Stat({ label, value, highlight }) {
       }`}
     >
       <p className="label">{label}</p>
-      <p className={`font-display text-2xl ${highlight ? 'text-gold' : 'text-primary'}`}>
+      <p
+        className={`font-display text-2xl lining-nums tabular-nums ${
+          highlight ? 'text-gold' : 'text-primary'
+        }`}
+      >
         {value}
       </p>
     </div>

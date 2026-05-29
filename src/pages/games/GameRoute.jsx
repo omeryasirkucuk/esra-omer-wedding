@@ -10,7 +10,6 @@ import Quiz from './games/Quiz.jsx'
 import PhotoGuess from './games/PhotoGuess.jsx'
 import SlidePuzzle from './games/SlidePuzzle.jsx'
 import WhoSaid from './games/WhoSaid.jsx'
-import Scoreboard from './Scoreboard.jsx'
 
 const registry = {
   eslestirme: Memory,
@@ -18,7 +17,6 @@ const registry = {
   'foto-tahmin': PhotoGuess,
   yapboz: SlidePuzzle,
   'kim-demis': WhoSaid,
-  skor: Scoreboard,
 }
 
 export default function GameRoute() {
