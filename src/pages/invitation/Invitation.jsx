@@ -23,7 +23,9 @@ export default function Invitation() {
     audio.src = MUSIC_SRC // set synchronously so play() can run inside a gesture
     audio.loop = true
     audio.preload = 'auto'
-    audio.volume = 0
+    // Start at the soft target level (not 0): on iOS the volume property is
+    // ignored anyway, and starting at 0 risked a silent first second elsewhere.
+    audio.volume = TARGET_VOLUME
 
     const clearRamp = () => {
       if (rampRef.current) clearInterval(rampRef.current)
@@ -48,7 +50,7 @@ export default function Invitation() {
       if (started) return
       started = true
       events.forEach((e) => window.removeEventListener(e, onGesture))
-      audio.play().then(() => fadeTo(TARGET_VOLUME, 4000)).catch(() => {})
+      audio.play().catch(() => {})
     }
     events.forEach((e) => window.addEventListener(e, onGesture, { passive: true }))
 
@@ -58,7 +60,7 @@ export default function Invitation() {
         clearRamp()
         audio.pause()
       } else if (started && wantPlaying && audio.paused) {
-        audio.play().then(() => fadeTo(TARGET_VOLUME, 1500)).catch(() => {})
+        audio.play().catch(() => {})
       }
     }
     document.addEventListener('visibilitychange', onVisibility)

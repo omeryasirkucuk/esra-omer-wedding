@@ -159,6 +159,27 @@ export const s3StorageDriver = {
     return true
   },
 
+  // Stream a bucket object through our own origin with HTTP Range support.
+  // iOS Safari needs same-origin, range-capable, correctly-typed audio — a 302
+  // redirect to a presigned URL is unreliable for media playback there.
+  async streamMedia(key, req, res, contentType) {
+    try {
+      const range = req.headers.range
+      const out = await client.send(
+        new GetObjectCommand({ Bucket: BUCKET, Key: key, Range: range || undefined }),
+      )
+      res.status(range && out.ContentRange ? 206 : 200)
+      res.setHeader('Content-Type', contentType || out.ContentType || 'application/octet-stream')
+      res.setHeader('Accept-Ranges', 'bytes')
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      if (out.ContentLength != null) res.setHeader('Content-Length', String(out.ContentLength))
+      if (out.ContentRange) res.setHeader('Content-Range', out.ContentRange)
+      out.Body.pipe(res)
+    } catch {
+      res.status(404).end()
+    }
+  },
+
   // Presign any bucket key (used for the invitation music).
   async signKey(key) {
     return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), {

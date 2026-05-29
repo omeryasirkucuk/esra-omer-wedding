@@ -45,14 +45,12 @@ app.get('/api/music-url', async (_req, res) => {
   res.json({ url: '/api/music' })
 })
 
-app.get('/api/music', async (_req, res) => {
-  try {
-    const url = await storage.signKey(MUSIC_KEY)
-    if (url) return res.redirect(302, url)
-  } catch (err) {
-    console.error('[music]', err)
+app.get('/api/music', async (req, res) => {
+  // Prefer same-origin, range-capable streaming (reliable on iOS).
+  if (storage.streamMedia) {
+    return storage.streamMedia(MUSIC_KEY, req, res, 'audio/mpeg')
   }
-  // Local fallback (no S3): serve a file dropped in public/music if present.
+  // Local fallback (no S3): sendFile handles Range + MIME automatically.
   const local = path.join(dist, 'music', 'davetiye-music.mp3')
   if (fs.existsSync(local)) return res.sendFile(local)
   res.status(404).end()
