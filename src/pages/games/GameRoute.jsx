@@ -1,13 +1,16 @@
 // Resolves the :gameId route param to a game component. Unknown ids fall back
 // to a graceful "this game is being prepared" card.
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Emblem from '../../components/Emblem.jsx'
+import IdentityPrompt from '../../components/IdentityPrompt.jsx'
+import { hasProfile } from '../../lib/identity.js'
 import Memory from './games/Memory.jsx'
 import Quiz from './games/Quiz.jsx'
 import PhotoGuess from './games/PhotoGuess.jsx'
 import SlidePuzzle from './games/SlidePuzzle.jsx'
 import WhoSaid from './games/WhoSaid.jsx'
-import SpotDifference from './games/SpotDifference.jsx'
+import Scoreboard from './Scoreboard.jsx'
 
 const registry = {
   eslestirme: Memory,
@@ -15,12 +18,20 @@ const registry = {
   'foto-tahmin': PhotoGuess,
   yapboz: SlidePuzzle,
   'kim-demis': WhoSaid,
-  'fark-bul': SpotDifference,
+  skor: Scoreboard,
 }
 
 export default function GameRoute() {
   const { gameId } = useParams()
   const Game = registry[gameId]
+  // Bump to re-render once a profile is saved via the identity prompt.
+  const [, forceRerender] = useState(0)
+
+  // The scoreboard needs a name; ask once if we have none yet (shared via
+  // localStorage, so any prior album/board entry already satisfies this).
+  if (!hasProfile()) {
+    return <IdentityPrompt onDone={() => forceRerender((n) => n + 1)} />
+  }
 
   if (!Game) {
     return (

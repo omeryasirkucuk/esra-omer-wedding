@@ -33,8 +33,14 @@ export default function Menu({ onClose }) {
       >
         ×
       </button>
-      <div className="mb-4 opacity-90">
+      <div className="mb-2 opacity-90">
         <Emblem size={56} tone="light" />
+      </div>
+      <div
+        lang="en"
+        className="font-sans uppercase tracking-[0.3em] text-[11px] text-[#cdd2c4] mb-6"
+      >
+        Esra &amp; Ömer Wedding
       </div>
       {LINKS.map((l, i) => (
         <motion.button

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Emblem from '../components/Emblem.jsx'
-import { wedding } from '../data/wedding.js'
+import { useSite } from '../lib/siteContent.jsx'
 
 // The QR landing page: one elegant hub linking to the four sections.
 const DOORS = [
@@ -50,17 +50,18 @@ const DOORS = [
 ]
 
 export default function Home() {
+  const wedding = useSite()
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center">
-      <Emblem size={66} />
-      <h1 className="font-script text-primary text-5xl mt-4 leading-none">
+      <Emblem className="w-20 md:w-28" />
+      <h1 className="font-script text-primary text-5xl md:text-7xl mt-4 leading-none">
         {wedding.bride} &amp; {wedding.groom}
       </h1>
       <p className="label mt-3">
-        {wedding.dateLabel} · {wedding.venue.name.split(' ').slice(0, 2).join(' ')}
+        {wedding.dateLabel} · {wedding.timeLabel} · <span lang="en">{wedding.venue.name.split(' ').slice(0, 2).join(' ')}</span>
       </p>
 
-      <div className="grid grid-cols-2 gap-3 w-full max-w-sm mt-9">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full max-w-sm md:max-w-3xl mt-9">
         {DOORS.map((d, i) => (
           <motion.div
             key={d.to}
@@ -70,12 +71,12 @@ export default function Home() {
           >
             <Link
               to={d.to}
-              className="card-soft flex flex-col items-center justify-center py-6 px-2 hover:-translate-y-0.5 transition-transform"
+              className="card-soft flex flex-col items-center justify-center py-6 md:py-9 px-2 h-full hover:-translate-y-0.5 transition-transform"
             >
-              <span className="w-11 h-11 rounded-full border border-gold flex items-center justify-center text-primary mb-2 bg-gradient-to-b from-surface to-[#f4ecdd]">
+              <span className="w-11 h-11 md:w-14 md:h-14 rounded-full border border-gold flex items-center justify-center text-primary mb-2 bg-gradient-to-b from-surface to-[#f4ecdd]">
                 {d.icon}
               </span>
-              <span className="font-display text-primary text-lg">{d.name}</span>
+              <span className="font-display text-primary text-lg md:text-xl">{d.name}</span>
             </Link>
           </motion.div>
         ))}

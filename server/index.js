@@ -11,6 +11,10 @@ import { storage } from './storage/index.js'
 import { rsvpRouter } from './routes/rsvp.js'
 import { postsRouter } from './routes/posts.js'
 import { uploadsRouter } from './routes/uploads.js'
+import { adminRouter } from './routes/admin.js'
+import { gamesRouter } from './routes/games.js'
+import { siteRouter } from './routes/site.js'
+import { scoresRouter } from './routes/scores.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Render (and most hosts) inject PORT; fall back to API_PORT locally.
@@ -43,6 +47,10 @@ app.get('/api/music', async (_req, res) => {
 app.use('/api/rsvp', rsvpRouter)
 app.use('/api/posts', postsRouter)
 app.use('/api/uploads', uploadsRouter)
+app.use('/api/admin', adminRouter)
+app.use('/api/games', gamesRouter)
+app.use('/api/site', siteRouter)
+app.use('/api/scores', scoresRouter)
 app.get('/api/health', (_req, res) => res.json({ ok: true, storage: storage.name }))
 
 // In production, serve the built SPA and fall back to index.html for routing.

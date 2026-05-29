@@ -1,21 +1,35 @@
 // "Takvime Ekle" helpers. The .ics download works on iOS, Android and desktop
 // calendars; the Google link covers Google Calendar users. No external deps.
-import { calendarEvent } from '../data/wedding.js'
+//
+// The event is derived from the live wedding details (so editing the date in
+// the admin updates the calendar entry too). It starts at the site's arrival
+// time (dateISO) and runs ~4 hours.
 
-// 2026-07-17T19:30:00+03:00 -> 20260717T163000Z (UTC, Google/ICS basic format)
 function toICSDate(iso) {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
 
-export function buildICS() {
-  const e = calendarEvent
-  const lines = [
+function eventFromWedding(w) {
+  const start = new Date(w.dateISO)
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000)
+  return {
+    title: `${w.bride} & ${w.groom} — Düğün`,
+    description: `${w.bride} & ${w.groom}'in düğününe davetlisiniz.`,
+    location: `${w.venue.name}, ${w.venue.address}`,
+    startISO: start.toISOString(),
+    endISO: end.toISOString(),
+  }
+}
+
+export function buildICS(w) {
+  const e = eventFromWedding(w)
+  return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//esra-omer//wedding//TR',
     'BEGIN:VEVENT',
     `UID:${toICSDate(e.startISO)}-esra-omer@wedding`,
-    `DTSTAMP:${toICSDate(new Date().toISOString())}`,
+    `DTSTAMP:${toICSDate(e.startISO)}`,
     `DTSTART:${toICSDate(e.startISO)}`,
     `DTEND:${toICSDate(e.endISO)}`,
     `SUMMARY:${e.title}`,
@@ -23,12 +37,11 @@ export function buildICS() {
     `LOCATION:${e.location}`,
     'END:VEVENT',
     'END:VCALENDAR',
-  ]
-  return lines.join('\r\n')
+  ].join('\r\n')
 }
 
-export function downloadICS() {
-  const blob = new Blob([buildICS()], { type: 'text/calendar;charset=utf-8' })
+export function downloadICS(w) {
+  const blob = new Blob([buildICS(w)], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -39,8 +52,8 @@ export function downloadICS() {
   URL.revokeObjectURL(url)
 }
 
-export function googleCalendarUrl() {
-  const e = calendarEvent
+export function googleCalendarUrl(w) {
+  const e = eventFromWedding(w)
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: e.title,

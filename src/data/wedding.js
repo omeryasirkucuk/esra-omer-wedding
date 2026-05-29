@@ -3,11 +3,13 @@
 export const wedding = {
   bride: 'Esra',
   groom: 'Ömer',
-  // ISO date-time in Europe/Istanbul (UTC+3). Ceremony at 20:00.
-  dateISO: '2026-07-17T20:00:00+03:00',
+  // ISO date-time in Europe/Istanbul (UTC+3). This is the arrival/welcome time
+  // shown across the site; the detailed schedule (welcome 19:30, ceremony
+  // 20:00) lives in `program` below. Both are editable from the admin.
+  dateISO: '2026-07-17T19:30:00+03:00',
   dateLabel: '17 Temmuz 2026',
   dayLabel: 'Cuma',
-  timeLabel: '20:00',
+  timeLabel: '19:30',
   quote: 'Bu mutlu günümüzde sizi de aramızda görmek isteriz.',
   closing: 'Sevgiyle bekleriz',
   families: [

@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { SiteProvider } from './lib/siteContent.jsx'
 import Layout from './components/Layout.jsx'
 import Home from './pages/Home.jsx'
 import Invitation from './pages/invitation/Invitation.jsx'
@@ -9,6 +10,7 @@ import GameRoute from './pages/games/GameRoute.jsx'
 
 export default function App() {
   return (
+    <SiteProvider>
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
@@ -20,5 +22,6 @@ export default function App() {
         <Route path="*" element={<Home />} />
       </Route>
     </Routes>
+    </SiteProvider>
   )
 }

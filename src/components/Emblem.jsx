@@ -1,6 +1,10 @@
 // The wedding mark: a floral arch with the couple silhouette and their cat.
 // Used as the logo at the top of every page and as the favicon. Tapping it
-// (when `to` is set) navigates home.
+// (when linkHome) navigates home.
+//
+// Sizing: pass a `size` (px) for a fixed size, or a width utility in
+// `className` (e.g. "w-14 md:w-20") for a responsive logo. When className sets
+// the width, the SVG fills it.
 import { useNavigate } from 'react-router-dom'
 
 export default function Emblem({ size = 52, tone = 'default', linkHome = false, className = '' }) {
@@ -10,8 +14,11 @@ export default function Emblem({ size = 52, tone = 'default', linkHome = false, 
       ? { arch: '#cdd2c4', flower: '#e7c2d1', fig: '#f0e9dd' }
       : { arch: '#8a9a7b', flower: '#b98ca0', fig: '#5b5048' }
 
+  const usesClassWidth = /\bw-/.test(className)
+  const style = usesClassWidth ? undefined : { width: size }
+
   const svg = (
-    <svg viewBox="0 0 90 78" width={size} height={size * 0.86} aria-hidden="true">
+    <svg viewBox="0 0 90 78" className="w-full h-auto block" aria-hidden="true">
       <path
         d="M18 74 Q19 40 31 26 Q45 12 59 26 Q71 40 72 74"
         fill="none"
@@ -51,11 +58,16 @@ export default function Emblem({ size = 52, tone = 'default', linkHome = false, 
         type="button"
         onClick={() => navigate('/')}
         aria-label="Ana sayfa"
+        style={style}
         className={`inline-flex items-center justify-center ${className}`}
       >
         {svg}
       </button>
     )
   }
-  return <span className={`inline-flex ${className}`}>{svg}</span>
+  return (
+    <span style={style} className={`inline-flex ${className}`}>
+      {svg}
+    </span>
+  )
 }

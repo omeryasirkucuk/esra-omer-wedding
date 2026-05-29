@@ -37,10 +37,14 @@ export function getProfile() {
 }
 
 export function saveProfile({ firstName, lastName }) {
+  // Surname is optional: with one, the display name is "Ayşe K."; without it,
+  // just "Ayşe".
+  const first = (firstName || '').trim()
+  const last = (lastName || '').trim()
   const profile = {
-    firstName: firstName.trim(),
-    lastName: lastName.trim(),
-    displayName: `${firstName.trim()} ${lastName.trim().charAt(0).toUpperCase()}.`,
+    firstName: first,
+    lastName: last,
+    displayName: last ? `${first} ${last.charAt(0).toUpperCase()}.` : first,
   }
   localStorage.setItem(NAME_KEY, JSON.stringify(profile))
   return profile

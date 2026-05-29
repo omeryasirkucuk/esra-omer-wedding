@@ -1,43 +1,64 @@
 // The /oyunlar landing grid: a calm, fine-stationery menu of small games guests
 // can play while they wait for the ceremony. No scores, no ranking — just fun.
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Emblem from '../../components/Emblem.jsx'
+import IdentityPrompt from '../../components/IdentityPrompt.jsx'
+import { hasProfile } from '../../lib/identity.js'
 
 // Each tile maps to a route at /oyunlar/<id>. `symbol` is a small font-display
 // glyph shown inside a gold medallion.
+// `descLang` marks descriptors that are English words so the uppercase label
+// uses English casing (QUIZ, not QUİZ) instead of Turkish.
 const games = [
   { id: 'eslestirme', name: 'Hafıza', descriptor: 'Eşleştirme', symbol: '✿' },
-  { id: 'cifti-tani', name: 'Çifti Tanı', descriptor: 'Quiz', symbol: '?' },
+  { id: 'cifti-tani', name: 'Çifti Tanı', descriptor: 'Quiz', symbol: '?', descLang: 'en' },
   { id: 'foto-tahmin', name: 'Foto Tahmin', descriptor: 'Bil bakalım', symbol: '◐' },
-  { id: 'yapboz', name: 'Yapboz', descriptor: 'Slide puzzle', symbol: '⊞' },
+  { id: 'yapboz', name: 'Yapboz', descriptor: 'Slide puzzle', symbol: '⊞', descLang: 'en' },
   { id: 'kim-demis', name: 'Kim Demiş?', descriptor: 'Esra mı Ömer mi', symbol: '❝' },
-  { id: 'fark-bul', name: 'Farkı Bul', descriptor: 'Foto üstünde', symbol: '✦' },
 ]
 
 export default function GamesHub() {
+  // Bump to re-render once a profile is saved via the identity prompt.
+  const [, forceRerender] = useState(0)
+
+  // Scores need a name; ask once (shared via localStorage across the site).
+  if (!hasProfile()) {
+    return <IdentityPrompt onDone={() => forceRerender((n) => n + 1)} />
+  }
+
   return (
-    <div className="paper min-h-[100svh] px-6 pt-8 pb-16 flex flex-col items-center">
-      <Emblem size={48} linkHome />
+    <div className="paper min-h-[100svh] px-6 pt-10 pb-16 flex flex-col items-center">
+      <Emblem className="w-12 md:w-16" linkHome />
       <p className="label mt-4">Eğlence Köşesi</p>
-      <h1 className="font-display italic text-primary text-2xl text-center mt-2 leading-snug max-w-xs">
+      <h1 className="font-display italic text-primary text-2xl md:text-4xl text-center mt-2 leading-snug max-w-xs md:max-w-xl">
         Tören başlayana dek keyifli vakit geçirin
       </h1>
 
-      <div className="grid grid-cols-2 gap-4 mt-9 w-full max-w-md">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 mt-9 w-full max-w-md md:max-w-2xl">
         {games.map((g) => (
           <Link
             key={g.id}
             to={`/oyunlar/${g.id}`}
-            className="card-soft no-underline flex flex-col items-center text-center px-3 py-6 transition-transform active:translate-y-px hover:-translate-y-0.5"
+            className="card-soft no-underline flex flex-col items-center text-center px-3 py-6 md:py-8 transition-transform active:translate-y-px hover:-translate-y-0.5"
           >
-            <span className="w-10 h-10 rounded-full border border-gold flex items-center justify-center font-display text-primary text-lg">
+            <span className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-gold flex items-center justify-center font-display text-primary text-lg md:text-xl">
               {g.symbol}
             </span>
-            <span className="font-display text-primary text-xl mt-3">{g.name}</span>
-            <span className="label mt-1">{g.descriptor}</span>
+            <span className="font-display text-primary text-xl md:text-2xl mt-3">{g.name}</span>
+            <span className="label mt-1" lang={g.descLang}>
+              {g.descriptor}
+            </span>
           </Link>
         ))}
       </div>
+
+      <Link
+        to="/oyunlar/skor"
+        className="btn-lux no-underline mt-9"
+      >
+        Skor Tablosu
+      </Link>
     </div>
   )
 }

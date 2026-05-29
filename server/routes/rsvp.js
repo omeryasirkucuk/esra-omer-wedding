@@ -8,14 +8,14 @@ export const rsvpRouter = Router()
 rsvpRouter.post('/', async (req, res, next) => {
   try {
     const { firstName, lastName, attending, guests, children } = req.body || {}
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: 'firstName and lastName are required' })
+    if (!firstName) {
+      return res.status(400).json({ error: 'firstName is required' })
     }
     const entries = await storage.getCollection('rsvp')
     entries.push({
       id: nanoid(10),
       firstName: String(firstName).trim(),
-      lastName: String(lastName).trim(),
+      lastName: String(lastName || '').trim(),
       attending: attending === false ? false : true,
       guests: Number(guests) || 1,
       children: Number(children) || 0,

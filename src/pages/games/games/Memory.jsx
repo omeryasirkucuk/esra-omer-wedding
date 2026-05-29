@@ -1,14 +1,31 @@
 // Memory / concentration ("Hafıza"): a 4x4 grid of 8 matched pairs. Players flip
 // two cards at a time; matched pairs stay revealed. Tracks moves, matches and
 // elapsed time. No scoring economy — just a gentle "Tebrikler!" on completion.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import GameShell from '../GameShell.jsx'
+import GameOverActions from '../GameOverActions.jsx'
+import { useScoreSubmit } from '../useScoreSubmit.js'
+import ScoreSubmitted from '../ScoreSubmitted.jsx'
+import { api } from '../../../lib/api.js'
 
-// TODO: swap symbol faces for couple photo thumbnails when provided.
-const FACES = ['🌿', '💍', '🤍', '🕊️', '🌸', '✨', '🥂', '💐']
+const PAIR_COUNT = 8 // 4x4 board = 8 pairs
 
-function buildDeck() {
-  const cards = FACES.flatMap((face, i) => [
+// Default symbol faces, used when the couple hasn't uploaded 8 photos yet.
+const DEFAULT_FACES = ['🌿', '💍', '🤍', '🕊️', '🌸', '✨', '🥂', '💐']
+
+// Pull up to 8 non-empty photo urls from the saved games content. When fewer
+// than 8 are set the game falls back to the default symbol faces. Each returned
+// face carries a `type` so the card knows whether to render an <img> or text.
+function resolveFaces(memory) {
+  const urls = Array.isArray(memory) ? memory.filter((u) => typeof u === 'string' && u) : []
+  if (urls.length >= PAIR_COUNT) {
+    return urls.slice(0, PAIR_COUNT).map((url) => ({ type: 'image', value: url }))
+  }
+  return DEFAULT_FACES.map((face) => ({ type: 'symbol', value: face }))
+}
+
+function buildDeck(faces) {
+  const cards = faces.flatMap((face, i) => [
     { id: `${i}a`, face, pairId: i },
     { id: `${i}b`, face, pairId: i },
   ])
@@ -27,7 +44,8 @@ function formatTime(totalSeconds) {
 }
 
 export default function Memory() {
-  const [deck, setDeck] = useState(buildDeck)
+  const [faces, setFaces] = useState(() => resolveFaces(null))
+  const [deck, setDeck] = useState(() => buildDeck(resolveFaces(null)))
   const [flipped, setFlipped] = useState([]) // indexes currently face-up (unmatched)
   const [matched, setMatched] = useState([]) // pairIds already solved
   const [moves, setMoves] = useState(0)
@@ -35,7 +53,35 @@ export default function Memory() {
   const [seconds, setSeconds] = useState(0)
   const [started, setStarted] = useState(false)
 
-  const won = matched.length === FACES.length
+  const won = matched.length === PAIR_COUNT
+
+  // On mount, load saved photo faces; rebuild the deck if 8 photos are present.
+  useEffect(() => {
+    let alive = true
+    api
+      .getGamesContent()
+      .then((d) => {
+        if (!alive) return
+        const next = resolveFaces(d?.memory)
+        setFaces(next)
+        setDeck(buildDeck(next))
+      })
+      .catch(() => {
+        // Keep the default faces already in state on failure.
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Submit the final result exactly once on completion. Higher is better:
+  // fewer moves and less time keep the score up.
+  const submitted = useScoreSubmit(won, () => ({
+    game: 'eslestirme',
+    score: Math.max(0, 1000 - moves * 10 - seconds * 2),
+    label: `${moves} hamle · ${formatTime(seconds)}`,
+    detail: { hamle: moves, saniye: seconds },
+  }))
 
   // Elapsed-time ticker, runs only while playing.
   useEffect(() => {
@@ -45,14 +91,14 @@ export default function Memory() {
   }, [started, won])
 
   const reset = useCallback(() => {
-    setDeck(buildDeck())
+    setDeck(buildDeck(faces))
     setFlipped([])
     setMatched([])
     setMoves(0)
     setLocked(false)
     setSeconds(0)
     setStarted(false)
-  }, [])
+  }, [faces])
 
   const onFlip = (index) => {
     if (locked || flipped.includes(index)) return
@@ -83,13 +129,13 @@ export default function Memory() {
 
   return (
     <GameShell label="Eşleştirme" title="Hafıza">
-      <div className="flex items-center justify-center gap-5 label">
+      <div className="flex items-center justify-center gap-5 md:gap-8 label md:text-[0.7rem]">
         <span>Hamle {moves}</span>
-        <span>Eşleşme {matched.length}/{FACES.length}</span>
+        <span>Eşleşme {matched.length}/{PAIR_COUNT}</span>
         <span>Süre {formatTime(seconds)}</span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2.5 mt-6 w-full max-w-xs mx-auto">
+      <div className="grid grid-cols-4 gap-2.5 md:gap-4 mt-6 md:mt-8 w-full max-w-xs md:max-w-md mx-auto">
         {deck.map((card, index) => (
           <MemoryCard
             key={card.id}
@@ -106,9 +152,8 @@ export default function Memory() {
           <p className="label mt-1">
             {moves} hamle · {formatTime(seconds)}
           </p>
-          <button type="button" onClick={reset} className="btn-lux mt-5">
-            Tekrar Oyna
-          </button>
+          <ScoreSubmitted submitted={submitted} />
+          <GameOverActions onRestart={reset} />
         </div>
       )}
     </GameShell>
@@ -116,13 +161,14 @@ export default function Memory() {
 }
 
 // A single flip card. The 3D flip is pure CSS via inline transform styles so no
-// extra global stylesheet is needed.
+// extra global stylesheet is needed. `face` is { type: 'image' | 'symbol', value }.
 function MemoryCard({ face, shown, onFlip }) {
+  const isImage = face.type === 'image'
   return (
     <button
       type="button"
       onClick={onFlip}
-      aria-label={shown ? face : 'Kapalı kart'}
+      aria-label={shown ? (isImage ? 'Açık kart' : face.value) : 'Kapalı kart'}
       className="relative aspect-square"
       style={{ perspective: '600px' }}
     >
@@ -136,7 +182,7 @@ function MemoryCard({ face, shown, onFlip }) {
       >
         {/* Back: floral motif color */}
         <span
-          className="absolute inset-0 rounded-lg border border-gold flex items-center justify-center text-rose"
+          className="absolute inset-0 rounded-lg md:rounded-xl border border-gold flex items-center justify-center text-rose md:text-xl"
           style={{
             backfaceVisibility: 'hidden',
             background: 'linear-gradient(135deg,#f4ecdd,#efe6d4)',
@@ -144,15 +190,19 @@ function MemoryCard({ face, shown, onFlip }) {
         >
           ❀
         </span>
-        {/* Front: pair face */}
+        {/* Front: pair face — photo when provided, else symbol */}
         <span
-          className="absolute inset-0 rounded-lg border border-gold flex items-center justify-center text-2xl card-soft"
+          className="absolute inset-0 rounded-lg md:rounded-xl border border-gold flex items-center justify-center text-2xl md:text-4xl card-soft overflow-hidden"
           style={{
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
           }}
         >
-          {face}
+          {isImage ? (
+            <img src={face.value} alt="" className="w-full h-full object-cover" />
+          ) : (
+            face.value
+          )}
         </span>
       </span>
     </button>

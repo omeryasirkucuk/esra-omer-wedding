@@ -1,12 +1,19 @@
 // "Foto Tahmin": a small multiple-choice game over a few rounds. Each round shows
 // a placeholder tile (where a real couple photo will go) and asks a "which
 // year / where" style question. Gentle correct/total tally at the end.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api } from '../../../lib/api.js'
 import GameShell from '../GameShell.jsx'
+import GameOverActions from '../GameOverActions.jsx'
+import { useScoreSubmit } from '../useScoreSubmit.js'
+import ScoreSubmitted from '../ScoreSubmitted.jsx'
 
-// TODO: replace the gradient placeholders with real photo URLs and edit the
-// questions/options/answer below when the couple's photos are available.
-const rounds = [
+// A soft gradient used as a placeholder tile when a round has no image.
+const FALLBACK_GRADIENT = 'linear-gradient(135deg,#eef0e6,#e6e4d4 60%,#e9ddc6)'
+
+// Bundled fallback rounds, used when nothing is stored yet. These use gradient
+// placeholders (no real photos) and a `prompt` for the question text.
+const defaultRounds = [
   {
     prompt: 'Bu fotoğraf hangi yıl çekildi?',
     gradient: 'linear-gradient(135deg,#eef0e6,#e6e4d4 60%,#e9ddc6)',
@@ -33,27 +40,80 @@ const rounds = [
   },
 ]
 
+// Map a stored round ({ imageUrl, question, options, answerIndex }) to the shape
+// the component renders. Keeps `prompt` and a `gradient` fallback for rounds
+// without an image.
+function fromStored(item) {
+  return {
+    imageUrl: item.imageUrl || '',
+    prompt: item.question || '',
+    gradient: FALLBACK_GRADIENT,
+    options: Array.isArray(item.options) ? item.options : [],
+    answerIndex: typeof item.answerIndex === 'number' ? item.answerIndex : 0,
+  }
+}
+
 export default function PhotoGuess() {
+  const [rounds, setRounds] = useState(defaultRounds)
+
+  // Prefer stored content; fall back to the bundled defaults on empty/error.
+  useEffect(() => {
+    let alive = true
+    api
+      .getGamesContent()
+      .then((d) => {
+        if (!alive) return
+        if (Array.isArray(d?.photoGuess) && d.photoGuess.length > 0) {
+          setRounds(d.photoGuess.map(fromStored))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
   const total = rounds.length
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [correct, setCorrect] = useState(0)
   const [done, setDone] = useState(false)
+  // Per-round record for the scoreboard detail payload.
+  const [answers, setAnswers] = useState([])
 
   const current = rounds[index]
   const answered = selected !== null
+
+  // Submit the final result exactly once when the game ends.
+  const submitted = useScoreSubmit(done, () => ({
+    game: 'foto-tahmin',
+    score: correct,
+    label: `${correct}/${total} doğru`,
+    detail: answers,
+  }))
 
   const restart = () => {
     setIndex(0)
     setSelected(null)
     setCorrect(0)
     setDone(false)
+    setAnswers([])
   }
 
   const choose = (i) => {
     if (answered) return
     setSelected(i)
-    if (i === current.answerIndex) setCorrect((c) => c + 1)
+    const ok = i === current.answerIndex
+    if (ok) setCorrect((c) => c + 1)
+    setAnswers((prev) => [
+      ...prev,
+      {
+        soru: current.prompt,
+        cevap: current.options[i],
+        dogru: current.options[current.answerIndex],
+        ok,
+      },
+    ])
   }
 
   const next = () => {
@@ -66,12 +126,11 @@ export default function PhotoGuess() {
     return (
       <GameShell label="Bil bakalım" title="Foto Tahmin">
         <div className="text-center mt-4 animate-fadeUp">
-          <p className="font-display italic text-primary text-2xl">
+          <p className="font-display italic text-primary text-2xl md:text-3xl">
             Bitti — {correct}/{total} doğru
           </p>
-          <button type="button" onClick={restart} className="btn-lux mt-6">
-            Tekrar Oyna
-          </button>
+          <ScoreSubmitted submitted={submitted} />
+          <GameOverActions onRestart={restart} />
         </div>
       </GameShell>
     )
@@ -82,18 +141,26 @@ export default function PhotoGuess() {
       <p className="label text-center">
         {index + 1}/{total}
       </p>
-      <div
-        className="w-full max-w-xs aspect-[4/3] rounded-2xl border border-[#e2d6b8] mt-3 flex items-center justify-center text-gold text-3xl"
-        style={{ background: current.gradient }}
-        aria-hidden="true"
-      >
-        ❀
-      </div>
-      <h2 className="font-display text-primary text-xl text-center mt-5">
+      {current.imageUrl ? (
+        <img
+          src={current.imageUrl}
+          alt=""
+          className="w-full max-w-xs md:max-w-sm aspect-[4/3] md:max-h-72 object-cover rounded-2xl border border-[#e2d6b8] mt-3 md:mt-4"
+        />
+      ) : (
+        <div
+          className="w-full max-w-xs md:max-w-sm aspect-[4/3] md:max-h-72 rounded-2xl border border-[#e2d6b8] mt-3 md:mt-4 flex items-center justify-center text-gold text-3xl md:text-4xl"
+          style={{ background: current.gradient }}
+          aria-hidden="true"
+        >
+          ❀
+        </div>
+      )}
+      <h2 className="font-display text-primary text-xl md:text-2xl text-center mt-5 md:mt-7">
         {current.prompt}
       </h2>
 
-      <div className="grid grid-cols-2 gap-3 mt-5 w-full max-w-xs">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mt-5 md:mt-7 w-full max-w-xs md:max-w-md">
         {current.options.map((opt, i) => {
           const isCorrect = i === current.answerIndex
           const isPicked = i === selected
@@ -110,7 +177,7 @@ export default function PhotoGuess() {
               onClick={() => choose(i)}
               disabled={answered}
               style={style}
-              className="card-soft px-3 py-3 font-display text-lg text-ink transition-colors"
+              className="card-soft px-3 py-3 md:px-5 md:py-4 font-display text-lg md:text-xl text-ink transition-colors"
             >
               {opt}
             </button>
@@ -119,7 +186,7 @@ export default function PhotoGuess() {
       </div>
 
       {answered && (
-        <button type="button" onClick={next} className="btn-lux mt-6">
+        <button type="button" onClick={next} className="btn-lux md:text-[0.74rem] mt-6">
           {index + 1 >= total ? 'Bitir' : 'Sıradaki'}
         </button>
       )}

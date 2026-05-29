@@ -14,7 +14,7 @@ function ImageThumb({ file }) {
   }, [file])
 
   return (
-    <div className="w-9 h-9 rounded overflow-hidden bg-[#efe6d4] shrink-0">
+    <div className="w-9 h-9 md:w-11 md:h-11 rounded overflow-hidden bg-[#efe6d4] shrink-0">
       {url && <img src={url} alt="" className="w-full h-full object-cover" decoding="async" />}
     </div>
   )
@@ -22,7 +22,7 @@ function ImageThumb({ file }) {
 
 function VideoThumb() {
   return (
-    <div className="w-9 h-9 rounded bg-[#efe6d4] shrink-0 flex items-center justify-center text-rose text-sm">
+    <div className="w-9 h-9 md:w-11 md:h-11 rounded bg-[#efe6d4] shrink-0 flex items-center justify-center text-rose text-sm">
       ▶
     </div>
   )
@@ -39,7 +39,7 @@ function QueueRow({ item }) {
       {isImage ? <ImageThumb file={item.file} /> : <VideoThumb />}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-display text-primary text-[13px] truncate">{item.file.name}</span>
+          <span className="font-display text-primary text-[13px] md:text-sm truncate">{item.file.name}</span>
           {done && <span className="text-sage text-xs shrink-0">✓</span>}
           {failed && <span className="text-rose text-[10px] shrink-0">hata</span>}
         </div>
@@ -61,7 +61,7 @@ export default function UploadQueue({ items }) {
 
   return (
     <div className="w-full mt-4">
-      <p className="label-gold mb-1 text-left">
+      <p className="label-gold mb-1 text-left md:text-[0.7rem]">
         Yükleniyor{active > 0 ? ` · ${active}` : ''}
       </p>
       <ul className="scroll-gold overflow-y-auto max-h-56 pr-1 divide-y divide-[#efe6d4]">

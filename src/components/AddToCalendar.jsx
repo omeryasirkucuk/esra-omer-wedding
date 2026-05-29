@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { downloadICS, googleCalendarUrl } from '../lib/calendar.js'
+import { useSite } from '../lib/siteContent.jsx'
 
 const CalIcon = () => (
   <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -12,6 +13,7 @@ const CalIcon = () => (
 // Apple/Android/Outlook, plus a direct Google Calendar link.
 export default function AddToCalendar() {
   const [open, setOpen] = useState(false)
+  const wedding = useSite()
   return (
     <div className="relative inline-block">
       <button
@@ -25,7 +27,7 @@ export default function AddToCalendar() {
         <div className="absolute left-1/2 -translate-x-1/2 mt-2 z-20 card-soft shadow-lg overflow-hidden w-40">
           <button
             onClick={() => {
-              downloadICS()
+              downloadICS(wedding)
               setOpen(false)
             }}
             className="block w-full text-left px-4 py-2.5 font-display text-primary text-sm hover:bg-[#f4ecdd]"
@@ -33,7 +35,7 @@ export default function AddToCalendar() {
             Apple / Telefon
           </button>
           <a
-            href={googleCalendarUrl()}
+            href={googleCalendarUrl(wedding)}
             target="_blank"
             rel="noreferrer"
             onClick={() => setOpen(false)}

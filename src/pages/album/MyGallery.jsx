@@ -39,15 +39,15 @@ export default function MyGallery({ items, onDelete }) {
   return (
     <section className="w-full mt-10">
       <div className="flex items-center justify-center gap-2 mb-4">
-        <p className="label">Yüklediklerin</p>
-        <span className="label-gold">· {items.length}</span>
+        <p className="label md:text-[0.7rem]">Yüklediklerin</p>
+        <span className="label-gold md:text-[0.7rem]">· {items.length}</span>
       </div>
 
       {items.length === 0 ? (
-        <p className="font-display italic text-muted text-[13px]">Henüz bir şey yok</p>
+        <p className="font-display italic text-muted text-[13px] md:text-sm">Henüz bir şey yok</p>
       ) : (
         <div className="scroll-gold overflow-y-auto max-h-[60vh] pr-1">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-3">
             {items.map((item) => (
               <GalleryItem key={item.id} item={item} onDelete={onDelete} />
             ))}

@@ -11,7 +11,7 @@ export default function IdentityPrompt({ onDone }) {
 
   const submit = (e) => {
     e.preventDefault()
-    if (!firstName.trim() || !lastName.trim()) return
+    if (!firstName.trim()) return // surname is optional
     onDone(saveProfile({ firstName, lastName }))
   }
 
@@ -32,7 +32,7 @@ export default function IdentityPrompt({ onDone }) {
         />
         <input
           aria-label="Soyadınız"
-          placeholder="Soyadınız"
+          placeholder="Soyadınız (opsiyonel)"
           value={lastName}
           onChange={(e) => setLast(e.target.value)}
           className="w-full bg-transparent border-b border-[#cbb98c] py-2 mb-2 font-display text-primary text-[15px] placeholder:text-[#9aa6b0] focus:outline-none focus:border-gold"

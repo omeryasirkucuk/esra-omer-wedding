@@ -42,24 +42,24 @@ export default function Composer({ onSubmit, busy, progress }) {
   const isVideo = file?.type?.startsWith('video')
 
   return (
-    <div className="card-soft p-3">
+    <div className="card-soft p-3 md:p-4">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={2}
         maxLength={500}
         placeholder="Esra & Ömer'e birkaç kelime…"
-        className="w-full bg-transparent resize-none font-display text-primary text-[15px] leading-relaxed placeholder:text-[#9aa6b0] focus:outline-none"
+        className="w-full bg-transparent resize-none font-display text-primary text-[15px] md:text-base leading-relaxed placeholder:text-[#9aa6b0] focus:outline-none"
       />
 
       {file && (
         <div className="mt-1 flex items-center gap-2 rounded-lg bg-[#f4ecdd] px-2 py-1.5">
           {isVideo ? (
-            <video src={previewUrl} className="h-9 w-9 rounded object-cover" muted />
+            <video src={previewUrl} className="h-9 w-9 md:h-11 md:w-11 rounded object-cover" muted />
           ) : (
-            <img src={previewUrl} alt="" className="h-9 w-9 rounded object-cover" />
+            <img src={previewUrl} alt="" className="h-9 w-9 md:h-11 md:w-11 rounded object-cover" />
           )}
-          <span className="flex-1 truncate font-display text-[13px] text-primary-soft">
+          <span className="flex-1 truncate font-display text-[13px] md:text-sm text-primary-soft">
             {file.name}
           </span>
           <button

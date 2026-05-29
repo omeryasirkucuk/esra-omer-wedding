@@ -18,18 +18,18 @@ export default function PostCard({ post, liked, canDelete, onLike, onDelete, now
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="card-soft p-3"
+      className="card-soft p-3 md:p-4"
     >
       <header className="flex items-center gap-2.5">
         <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-sans text-[12px] text-white"
+          className="flex h-7 w-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full font-sans text-[12px] md:text-[14px] text-white"
           style={{ background: avatarColor(displayName) }}
           aria-hidden="true"
         >
           {initial(displayName)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-primary text-[15px] leading-tight">
+          <p className="truncate font-display text-primary text-[15px] md:text-base leading-tight">
             {displayName}
           </p>
           <p className="label" style={{ fontSize: '0.5rem' }}>
@@ -49,7 +49,7 @@ export default function PostCard({ post, liked, canDelete, onLike, onDelete, now
       </header>
 
       {text && (
-        <p className="mt-2 whitespace-pre-wrap break-words font-display text-primary-soft text-[15px] leading-relaxed">
+        <p className="mt-2 whitespace-pre-wrap break-words font-display text-primary-soft text-[15px] md:text-base leading-relaxed">
           {text}
         </p>
       )}
@@ -57,9 +57,18 @@ export default function PostCard({ post, liked, canDelete, onLike, onDelete, now
       {media?.url && (
         <div className="mt-2 overflow-hidden rounded-xl border border-[#e8dcbf]">
           {media.type === 'video' ? (
-            <video src={media.url} controls className="w-full" />
+            <video
+              src={media.url}
+              controls
+              className="w-full md:max-h-[420px] md:object-contain md:bg-[#f4ecdd]"
+            />
           ) : (
-            <img src={media.url} alt="" className="w-full" loading="lazy" />
+            <img
+              src={media.url}
+              alt=""
+              loading="lazy"
+              className="w-full md:max-h-[420px] md:object-contain md:bg-[#f4ecdd]"
+            />
           )}
         </div>
       )}

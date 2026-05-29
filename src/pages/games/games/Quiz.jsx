@@ -2,32 +2,69 @@
 // time, with a thin gold progress bar. Tapping an option reveals correct/wrong
 // tinting; a "Sıradaki" button advances. Ends with a gentle correct/total tally.
 // The couple can edit the questions and answers directly in src/data/quiz.js.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import GameShell from '../GameShell.jsx'
+import GameOverActions from '../GameOverActions.jsx'
 import { quizQuestions } from '../../../data/quiz.js'
+import { api } from '../../../lib/api.js'
+import { useScoreSubmit } from '../useScoreSubmit.js'
+import ScoreSubmitted from '../ScoreSubmitted.jsx'
 
 export default function Quiz() {
-  const total = quizQuestions.length
+  // Prefer admin-edited questions; fall back to the bundled defaults.
+  const [questions, setQuestions] = useState(quizQuestions)
+  useEffect(() => {
+    api
+      .getGamesContent()
+      .then((c) => {
+        if (c && Array.isArray(c.quiz) && c.quiz.length) setQuestions(c.quiz)
+      })
+      .catch(() => {})
+  }, [])
+
+  const quizQuestionsActive = questions
+  const total = quizQuestionsActive.length
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [correct, setCorrect] = useState(0)
   const [done, setDone] = useState(false)
+  // Per-question record for the scoreboard detail payload.
+  const [answers, setAnswers] = useState([])
 
-  const current = quizQuestions[index]
+  const current = quizQuestionsActive[index]
   const answered = selected !== null
+
+  // Submit the final result exactly once when the quiz ends.
+  const submitted = useScoreSubmit(done, () => ({
+    game: 'cifti-tani',
+    score: correct,
+    label: `${correct}/${total} doğru`,
+    detail: answers,
+  }))
 
   const restart = () => {
     setIndex(0)
     setSelected(null)
     setCorrect(0)
     setDone(false)
+    setAnswers([])
   }
 
   const choose = (i) => {
     if (answered) return
     setSelected(i)
-    if (i === current.answerIndex) setCorrect((c) => c + 1)
+    const ok = i === current.answerIndex
+    if (ok) setCorrect((c) => c + 1)
+    setAnswers((prev) => [
+      ...prev,
+      {
+        soru: current.question,
+        cevap: current.options[i],
+        dogru: current.options[current.answerIndex],
+        ok,
+      },
+    ])
   }
 
   const next = () => {
@@ -41,21 +78,20 @@ export default function Quiz() {
 
   if (done) {
     return (
-      <GameShell label="Quiz" title="Çifti Tanı">
+      <GameShell label={<span lang="en">Quiz</span>} title="Çifti Tanı">
         <div className="text-center mt-4 animate-fadeUp">
-          <p className="font-display italic text-primary text-2xl">
+          <p className="font-display italic text-primary text-2xl md:text-3xl">
             Bitti — {correct}/{total} doğru
           </p>
-          <button type="button" onClick={restart} className="btn-lux mt-6">
-            Tekrar Oyna
-          </button>
+          <ScoreSubmitted submitted={submitted} />
+          <GameOverActions onRestart={restart} />
         </div>
       </GameShell>
     )
   }
 
   return (
-    <GameShell label="Quiz" title="Çifti Tanı">
+    <GameShell label={<span lang="en">Quiz</span>} title="Çifti Tanı">
       <div className="w-full">
         <p className="label text-center">
           Soru {index + 1}/{total}
@@ -72,12 +108,12 @@ export default function Quiz() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="font-display text-primary text-xl text-center mt-7 leading-snug"
+          className="font-display text-primary text-xl md:text-2xl text-center mt-7 md:mt-9 leading-snug"
         >
           {current.question}
         </motion.h2>
 
-        <div className="flex flex-col gap-3 mt-6">
+        <div className="flex flex-col gap-3 md:gap-4 mt-6 md:mt-8">
           {current.options.map((opt, i) => {
             const isCorrect = i === current.answerIndex
             const isPicked = i === selected
@@ -97,7 +133,7 @@ export default function Quiz() {
                 onClick={() => choose(i)}
                 disabled={answered}
                 style={style}
-                className={`card-soft text-center px-4 py-3 font-display text-lg transition-colors ${tone} ${
+                className={`card-soft text-center px-4 py-3 md:px-6 md:py-4 font-display text-lg md:text-xl transition-colors ${tone} ${
                   answered ? '' : 'active:translate-y-px'
                 }`}
               >
@@ -109,7 +145,7 @@ export default function Quiz() {
 
         {answered && (
           <div className="text-center mt-7 animate-fadeUp">
-            <button type="button" onClick={next} className="btn-lux">
+            <button type="button" onClick={next} className="btn-lux md:text-[0.74rem]">
               {index + 1 >= total ? 'Bitir' : 'Sıradaki'}
             </button>
           </div>

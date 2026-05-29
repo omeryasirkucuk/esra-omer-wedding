@@ -1,0 +1,47 @@
+import { Router } from 'express'
+import { nanoid } from 'nanoid'
+import { storage } from '../storage/index.js'
+
+// Game scoreboard. Each finished game submits one entry; the games hub and the
+// end screens read the board back. `score` is a number (higher is better) and
+// `label` is the human-readable result (e.g. "6/8 doğru", "12 hamle · 0:45").
+export const scoresRouter = Router()
+
+const GAMES = new Set(['eslestirme', 'cifti-tani', 'foto-tahmin', 'yapboz', 'kim-demis'])
+
+// GET /api/scores  → all entries, newest first (capped).
+scoresRouter.get('/', async (_req, res, next) => {
+  try {
+    const scores = (await storage.getCollection('scores'))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .slice(0, 500)
+    res.json({ scores })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// POST /api/scores  { game, score, label, uploaderId, displayName }
+scoresRouter.post('/', async (req, res, next) => {
+  try {
+    const { game, score, label, detail, uploaderId, displayName } = req.body || {}
+    if (!GAMES.has(game)) return res.status(400).json({ error: 'unknown game' })
+    const scores = await storage.getCollection('scores')
+    const entry = {
+      id: nanoid(12),
+      game,
+      score: Number(score) || 0,
+      label: String(label || '').slice(0, 60),
+      // Optional per-game breakdown for the admin view (e.g. quiz answers).
+      detail: Array.isArray(detail) ? detail.slice(0, 50) : detail || null,
+      displayName: String(displayName || 'Misafir').slice(0, 60),
+      uploaderId: uploaderId || 'anon',
+      createdAt: new Date().toISOString(),
+    }
+    scores.push(entry)
+    await storage.saveCollection('scores', scores)
+    res.status(201).json(entry)
+  } catch (e) {
+    next(e)
+  }
+})

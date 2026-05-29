@@ -18,8 +18,8 @@ function makeQueueId() {
 // Greeting chip, offset from the fixed menu button so they never overlap.
 function GreetingChip({ firstName, onChange }) {
   return (
-    <div className="fixed top-4 right-16 z-40 flex items-center gap-1.5 rounded-full border border-line bg-surface/70 backdrop-blur px-3 h-10">
-      <span className="font-display text-primary text-[13px]">👋 {firstName}</span>
+    <div className="fixed top-4 right-16 z-40 flex items-center gap-1.5 rounded-full border border-line bg-surface/70 backdrop-blur px-3 md:px-4 h-10 md:h-11">
+      <span className="font-display text-primary text-[13px] md:text-[15px]">👋 {firstName}</span>
       <span className="text-muted text-[12px]">·</span>
       <button type="button" onClick={onChange} className="label-gold">
         değiştir
@@ -49,16 +49,16 @@ function Dropzone({ onFiles }) {
         }}
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
-        className={`w-full rounded-xl border border-dashed border-gold py-9 flex flex-col items-center gap-3 transition-colors ${
+        className={`w-full rounded-xl border border-dashed border-gold py-9 md:py-12 flex flex-col items-center gap-3 transition-colors ${
           over ? 'bg-[#f6efe0]' : 'bg-surface/40'
         }`}
       >
-        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="var(--c-rose)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="w-[34px] h-[34px] md:w-11 md:h-11" fill="none" stroke="var(--c-rose)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 16V4" />
           <path d="M7 9l5-5 5 5" />
           <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
         </svg>
-        <span className="label-gold">Foto / Video Seç</span>
+        <span className="label-gold md:text-[0.7rem]">Foto / Video Seç</span>
       </button>
       <input
         ref={inputRef}
@@ -141,14 +141,14 @@ function AlbumView({ profile, onChangeProfile }) {
     <section className="min-h-[100svh] flex flex-col items-center px-6 pt-20 pb-16">
       <GreetingChip firstName={profile.firstName} onChange={onChangeProfile} />
 
-      <Emblem size={48} linkHome />
-      <p className="label mt-5">Düğün Albümü</p>
-      <p className="font-display italic text-primary text-xl mt-1 mb-3">
+      <Emblem className="w-12 md:w-16" linkHome />
+      <p className="label mt-5 md:text-[0.7rem]">Düğün Albümü</p>
+      <p className="font-display italic text-primary text-xl md:text-3xl mt-1 mb-3">
         Anılarınızı bizimle paylaşın
       </p>
       <Sprig width={130} className="mb-7" />
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md md:max-w-2xl">
         <Dropzone onFiles={enqueue} />
         <UploadQueue items={queue} />
         <MyGallery items={gallery} onDelete={handleDelete} />

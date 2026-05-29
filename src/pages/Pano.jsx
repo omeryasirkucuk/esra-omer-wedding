@@ -173,11 +173,11 @@ export default function Pano() {
 
   return (
     <div className="paper min-h-[100svh]">
-      <div className="mx-auto flex min-h-[100svh] max-w-md flex-col px-5 pb-6 pt-7">
+      <div className="mx-auto flex min-h-[100svh] max-w-md md:max-w-lg flex-col px-5 pb-6 pt-7 md:pt-10">
         <div className="flex justify-center">
-          <Emblem size={48} linkHome />
+          <Emblem className="w-12 md:w-16" linkHome />
         </div>
-        <p className="label mt-4 mb-4 text-center">Anı Panosu</p>
+        <p className="label mt-4 mb-4 text-center md:mt-5 md:text-[0.7rem]">Anı Panosu</p>
 
         <Composer onSubmit={handleSubmit} busy={busy} progress={progress} />
 
@@ -200,7 +200,7 @@ export default function Pano() {
             {posts.length === 0 ? (
               <div className="flex flex-col items-center pt-12 text-center">
                 <Sprig width={130} />
-                <p className="mt-4 font-display italic text-primary-soft text-[15px]">
+                <p className="mt-4 font-display italic text-primary-soft text-[15px] md:text-lg">
                   İlk anıyı sen bırak 🤍
                 </p>
               </div>

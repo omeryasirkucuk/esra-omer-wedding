@@ -105,6 +105,43 @@ export const localStorageDriver = {
     return true
   },
 
+  // Key/value JSON document (object), e.g. editable game content.
+  async getDoc(name) {
+    return readJson(path.join(ROOT, `${name}.json`), {})
+  },
+  async saveDoc(name, obj) {
+    writeJson(path.join(ROOT, `${name}.json`), obj)
+  },
+
+  // Admin: every uploader folder with its manifest items.
+  async listAllUploads() {
+    const out = []
+    let slugs = []
+    try {
+      slugs = fs.readdirSync(UPLOADS_DIR)
+    } catch {
+      /* none yet */
+    }
+    for (const slug of slugs) {
+      const m = readJson(path.join(UPLOADS_DIR, slug, 'manifest.json'), null)
+      if (m) out.push({ slug, displayName: m.displayName, uploaderId: m.uploaderId, items: m.items || [] })
+    }
+    return out
+  },
+
+  // Admin: soft-delete an item addressed directly by folder slug.
+  async softDeleteBySlug(slug, id) {
+    const manifestPath = path.join(UPLOADS_DIR, slug, 'manifest.json')
+    const manifest = readJson(manifestPath, null)
+    if (!manifest) return false
+    const item = manifest.items.find((i) => i.id === id)
+    if (!item) return false
+    item.deleted = true
+    item.deletedAt = new Date().toISOString()
+    writeJson(manifestPath, manifest)
+    return true
+  },
+
   // No presigning locally; the music falls back to a file in public/music.
   async signKey() {
     return null

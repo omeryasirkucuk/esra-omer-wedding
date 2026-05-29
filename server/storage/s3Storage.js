@@ -124,6 +124,41 @@ export const s3StorageDriver = {
     return true
   },
 
+  // Key/value JSON document (object), e.g. editable game content.
+  async getDoc(name) {
+    return readJsonKey(`${name}.json`, {})
+  },
+  async saveDoc(name, obj) {
+    await writeJsonKey(`${name}.json`, obj)
+  },
+
+  // Admin: every uploader folder with its manifest items.
+  async listAllUploads() {
+    const res = await client.send(
+      new ListObjectsV2Command({ Bucket: BUCKET, Prefix: 'uploads/', Delimiter: '/' }),
+    )
+    const out = []
+    for (const p of res.CommonPrefixes || []) {
+      const slug = p.Prefix.replace(/^uploads\//, '').replace(/\/$/, '')
+      const m = await readJsonKey(`uploads/${slug}/manifest.json`, null)
+      if (m) out.push({ slug, displayName: m.displayName, uploaderId: m.uploaderId, items: m.items || [] })
+    }
+    return out
+  },
+
+  // Admin: soft-delete an item addressed directly by folder slug.
+  async softDeleteBySlug(slug, id) {
+    const key = `uploads/${slug}/manifest.json`
+    const manifest = await readJsonKey(key, null)
+    if (!manifest) return false
+    const item = manifest.items.find((i) => i.id === id)
+    if (!item) return false
+    item.deleted = true
+    item.deletedAt = new Date().toISOString()
+    await writeJsonKey(key, manifest)
+    return true
+  },
+
   // Presign any bucket key (used for the invitation music).
   async signKey(key) {
     return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), {

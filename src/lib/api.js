@@ -26,6 +26,16 @@ async function json(method, path, body) {
 
 export const api = {
   base: BASE,
+  // Editable game content (quiz, etc.); empty object when nothing saved yet.
+  getGamesContent: () => json('GET', '/api/games/content'),
+  // Editable site content (names, date, venue, program…); {} when unset.
+  getSiteContent: () => json('GET', '/api/site/content'),
+
+  // Game scoreboard
+  getScores: () => json('GET', '/api/scores'),
+  submitScore: ({ game, score, label, detail }) =>
+    json('POST', '/api/scores', { ...authParams(), game, score, label, detail }),
+
   // RSVP
   sendRsvp: (payload) => json('POST', '/api/rsvp', payload),
 
