@@ -68,7 +68,12 @@ export function bindInvitationMusic() {
   }
   clearFade()
   a.volume = TARGET
-  a.play().catch(() => armGesture(a))
+  a.play().catch(() => {})
+  // Always arm the first-gesture unlock: on a direct /davetiye visit iOS may
+  // "resolve" play() yet keep it silent, so the first real tap must (re)call
+  // play() in a trusted gesture to route audio to the speaker. Harmless when
+  // it's already audible (home flow) — the tap just re-plays a no-op.
+  armGesture(a)
 
   const onVisibility = () => {
     if (document.hidden) a.pause()
