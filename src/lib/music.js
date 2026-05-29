@@ -1,20 +1,23 @@
 // One app-wide audio element for the invitation's background music.
 //
-// It lives at module scope so it survives SPA navigation, and it is unlocked
+// It lives at module scope so it survives SPA navigation, and is unlocked
 // inside the home "Davetiye" tap (primeMusic) so iOS keeps it playing on the
 // invitation page.
 //
-// Reference counting: the route transition (AnimatePresence "wait" + a
-// pathname-keyed <Outlet/>) briefly mounts the invitation TWICE (mount → the
-// old wrapper unmounts → new wrapper mounts). A naive pause-on-unmount killed
-// the shared audio mid-transition. So we count active mounts and only fade out
-// when the count truly reaches zero (and stays there) — i.e. the guest has
-// really left the invitation.
+// iOS rule that bit us: calling play() WITHOUT a gesture "resolves" but plays
+// silently, and once the element is in that silent-playing state a later
+// gesture's play() does NOT re-route it to the speaker. So for a direct visit
+// (no prior tap) we must NOT auto-play — we leave the element paused and start
+// it from the first real tap, where play() on a *paused* element unlocks audio.
+//
+// Reference counting: the route transition mounts the invitation twice for a
+// moment; we only fade out when the count truly reaches zero.
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 const SRC = `${API_BASE}/api/music`
 const TARGET = 0.35
 
 let audio = null
+let primed = false
 let active = 0
 let stopTimer = null
 let fadeId = null
@@ -34,12 +37,15 @@ function clearFade() {
   if (fadeId) clearInterval(fadeId)
   fadeId = null
 }
-// Direct-visit fallback: start on the first real in-page gesture.
+// Start on the first real in-page gesture (used on a direct /davetiye visit).
+// The element is paused here, so play() inside the gesture unlocks audible sound.
 function armGesture(a) {
   if (gestureCleanup) return
   const evs = ['touchend', 'click', 'keydown']
   const handler = () => {
     cleanup()
+    primed = true
+    a.volume = TARGET
     a.play().catch(() => {})
   }
   const cleanup = () => {
@@ -50,9 +56,14 @@ function armGesture(a) {
   gestureCleanup = cleanup
 }
 
+export function isPrimed() {
+  return primed
+}
+
 // Call SYNCHRONOUSLY inside the tap that navigates to /davetiye (home/menu).
 export function primeMusic() {
   const a = element()
+  primed = true
   clearFade()
   a.volume = TARGET
   a.play().catch(() => {})
@@ -67,26 +78,24 @@ export function bindInvitationMusic() {
     stopTimer = null
   }
   clearFade()
-  a.volume = TARGET
-  a.play().catch(() => {})
-  // Always arm the first-gesture unlock: on a direct /davetiye visit iOS may
-  // "resolve" play() yet keep it silent, so the first real tap must (re)call
-  // play() in a trusted gesture to route audio to the speaker. Harmless when
-  // it's already audible (home flow) — the tap just re-plays a no-op.
-  armGesture(a)
+  if (primed) {
+    a.volume = TARGET
+    a.play().catch(() => {})
+  } else {
+    armGesture(a) // direct visit: stay paused, start on first tap
+  }
 
   const onVisibility = () => {
     if (document.hidden) a.pause()
-    else if (active > 0) a.play().catch(() => {})
+    else if (active > 0 && primed) a.play().catch(() => {})
   }
   document.addEventListener('visibilitychange', onVisibility)
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility)
     active = Math.max(0, active - 1)
-    if (active > 0) return // still mounted elsewhere (transition) — keep playing
+    if (active > 0) return
     if (stopTimer) clearTimeout(stopTimer)
-    // Defer; a re-mount during the transition cancels this before it runs.
     stopTimer = setTimeout(() => {
       stopTimer = null
       if (active > 0) return
