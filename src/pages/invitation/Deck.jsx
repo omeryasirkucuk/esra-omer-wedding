@@ -148,9 +148,10 @@ export default function Deck() {
           onClick={(e) =>
             e.currentTarget.closest('[data-deck]')?.scrollTo({ top: 0, behavior: 'smooth' })
           }
-          className="btn-lux mt-10 inline-flex items-center gap-2"
+          className="mt-10 flex flex-col items-center gap-0.5"
         >
-          <span className="text-gold">↑</span> En Üste Çık
+          <span className="text-gold text-xl leading-none">⌃</span>
+          <span className="label-gold">En Üste Çık</span>
         </button>
       </Panel>
     </div>
