@@ -93,7 +93,7 @@ export default function WhoSaid() {
       ...prev,
       { alinti: current.quote, cevap: name, dogru: current.who, ok },
     ])
-    // Reveal styling, lock taps, then auto-advance after ~1s.
+    // Reveal styling, lock taps, then auto-advance after ~1.5s.
     advanceTimer.current = setTimeout(() => {
       if (index + 1 >= total) {
         setDone(true)
@@ -101,7 +101,7 @@ export default function WhoSaid() {
         setIndex((n) => n + 1)
         setPicked(null)
       }
-    }, 1000)
+    }, 1500)
   }
 
   if (done) {
@@ -152,6 +152,10 @@ export default function WhoSaid() {
           )
         })}
       </div>
+
+      {answered && (
+        <div className="eo-advance-track mt-7"><span /></div>
+      )}
     </GameShell>
   )
 }

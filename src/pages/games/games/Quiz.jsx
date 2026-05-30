@@ -76,7 +76,7 @@ export default function Quiz() {
         ok,
       },
     ])
-    // Reveal styling, lock taps, then auto-advance after ~1s.
+    // Reveal styling, lock taps, then auto-advance after ~1.5s.
     advanceTimer.current = setTimeout(() => {
       if (index + 1 >= total) {
         setDone(true)
@@ -84,7 +84,7 @@ export default function Quiz() {
         setIndex((n) => n + 1)
         setSelected(null)
       }
-    }, 1000)
+    }, 1500)
   }
 
   if (done) {
@@ -153,6 +153,10 @@ export default function Quiz() {
             )
           })}
         </div>
+
+        {answered && (
+          <div className="eo-advance-track mt-7"><span /></div>
+        )}
       </div>
     </GameShell>
   )

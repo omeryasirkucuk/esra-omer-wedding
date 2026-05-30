@@ -102,6 +102,27 @@
   0%, 100% { transform: scale(0.5); opacity: 0; }
   50%      { transform: scale(1.2); opacity: 1; }
 }
+/* Quiz auto-advance progress: a gold bar that fills over the wait, so guests
+   see when the next question is coming. Duration matches the JS timeout (1.5s). */
+@keyframes eoAdvanceFill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+.eo-advance-track {
+  width: 140px;
+  height: 3px;
+  background: var(--c-line);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+.eo-advance-track > span {
+  display: block;
+  height: 100%;
+  background: var(--c-gold);
+  border-radius: 3px;
+  animation: eoAdvanceFill 1.5s linear forwards;
+}
 
 .eo-flower {
   transform-box: fill-box;
