@@ -3,6 +3,10 @@
 export const wedding = {
   bride: 'Esra',
   groom: 'Ömer',
+  // When false, only the invitation (/davetiye) is reachable; every other route
+  // redirects there and the nav menu is hidden. The couple flips this on from
+  // the admin on the wedding day to open the hub, board, games and album.
+  siteOpen: false,
   // ISO date-time in Europe/Istanbul (UTC+3). This is the arrival/welcome time
   // shown across the site; the detailed schedule (welcome 19:30, ceremony
   // 20:00) lives in `program` below. Both are editable from the admin.

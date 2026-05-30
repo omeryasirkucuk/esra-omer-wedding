@@ -106,6 +106,10 @@ export const getSiteContent = () => get('/api/admin/site-content')
 
 export const saveSiteContent = (payload) => put('/api/admin/site-content', payload)
 
+// Open/close the wedding-day surfaces (hub, board, games, album). When closed
+// the guest site shows only the invitation.
+export const setSiteOpen = (open) => put('/api/admin/site-open', { open })
+
 // Game scoreboard (who played what, the result, and per-game detail).
 export const getScores = () => get('/api/admin/scores')
 export const deleteScore = (id) => post('/api/admin/scores/delete', { id })

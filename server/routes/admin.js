@@ -240,6 +240,20 @@ adminRouter.put('/site-content', async (req, res, next) => {
   }
 })
 
+// Open/close the wedding-day surfaces (hub, board, games, album). When closed,
+// the guest site shows only the invitation. Merges the single flag into the
+// stored content so it never clobbers the rest of the editable site fields.
+adminRouter.put('/site-open', async (req, res, next) => {
+  try {
+    const current = (await storage.getDoc('site_content')) || {}
+    current.siteOpen = Boolean(req.body?.open)
+    await storage.saveDoc('site_content', current)
+    res.json({ ok: true, siteOpen: current.siteOpen })
+  } catch (e) {
+    next(e)
+  }
+})
+
 // Editable game content (quiz, who-said, photo-guess, game images).
 adminRouter.get('/games-content', async (req, res, next) => {
   try {

@@ -46,6 +46,10 @@ function mapsDirectionsUrl(wedding) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(wedding.venue.mapsQuery)}`
 }
 
+function mapsViewUrl(wedding) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wedding.venue.mapsQuery)}`
+}
+
 export default function Deck() {
   const wedding = useSite()
   return (
@@ -121,9 +125,14 @@ export default function Deck() {
         </a>
         <h2 className="font-display text-primary text-xl md:text-2xl mt-4 tracking-wide">{wedding.venue.name}</h2>
         <p className="font-display text-muted text-sm md:text-base leading-relaxed mt-2 max-w-xs md:max-w-sm">{wedding.venue.address}</p>
-        <a href={mapsDirectionsUrl(wedding)} target="_blank" rel="noreferrer" className="btn-lux mt-5">
-          Yol Tarifi Al
-        </a>
+        <div className="mt-5 flex flex-col items-stretch gap-3 w-full max-w-[16rem]">
+          <a href={mapsViewUrl(wedding)} target="_blank" rel="noreferrer" className="btn-lux w-full text-center">
+            Haritada Görüntüle
+          </a>
+          <a href={mapsDirectionsUrl(wedding)} target="_blank" rel="noreferrer" className="btn-lux w-full text-center">
+            Yol Tarifi Al
+          </a>
+        </div>
       </Panel>
 
       {/* 4 · RSVP */}

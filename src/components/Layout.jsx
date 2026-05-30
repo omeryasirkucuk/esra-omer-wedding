@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Menu from './Menu.jsx'
 import ProfileChip from './ProfileChip.jsx'
+import { useSite, useSiteReady } from '../lib/siteContent.jsx'
 
 // Hub pages where the name chip belongs. Exact match only — NOT individual game
 // screens (/oyunlar/:id), which have their own top-left "‹ Oyunlar" back link.
@@ -14,23 +15,39 @@ const PROFILE_ROUTES = ['/pano', '/album', '/oyunlar']
 export default function Layout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { siteOpen } = useSite()
+  const ready = useSiteReady()
 
-  const showChip = PROFILE_ROUTES.includes(location.pathname)
+  const onInvitation = location.pathname === '/davetiye'
+
+  // Until the wedding day the couple keeps the site closed: only the invitation
+  // is reachable. Wait for the stored flag to load before deciding, so guests
+  // never see a flash of the hub before the redirect.
+  if (ready && !siteOpen && !onInvitation) {
+    return <Navigate to="/davetiye" replace />
+  }
+  if (!ready && !onInvitation) {
+    return <div className="min-h-screen paper" />
+  }
+
+  const showChip = siteOpen && PROFILE_ROUTES.includes(location.pathname)
 
   return (
     <div className="min-h-screen paper">
       {/* Rendered here (outside the animated <main>) so it's truly viewport-
           fixed, consistent on every page, and never overlaps the menu button. */}
       {showChip && <ProfileChip />}
-      <button
-        onClick={() => setMenuOpen(true)}
-        aria-label="Menü"
-        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full border border-line bg-surface/70 backdrop-blur flex flex-col items-center justify-center gap-[3px]"
-      >
-        <span className="block w-4 h-px bg-primary" />
-        <span className="block w-4 h-px bg-primary" />
-        <span className="block w-4 h-px bg-primary" />
-      </button>
+      {siteOpen && (
+        <button
+          onClick={() => setMenuOpen(true)}
+          aria-label="Menü"
+          className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full border border-line bg-surface/70 backdrop-blur flex flex-col items-center justify-center gap-[3px]"
+        >
+          <span className="block w-4 h-px bg-primary" />
+          <span className="block w-4 h-px bg-primary" />
+          <span className="block w-4 h-px bg-primary" />
+        </button>
+      )}
 
       <AnimatePresence>{menuOpen && <Menu onClose={() => setMenuOpen(false)} />}</AnimatePresence>
 
