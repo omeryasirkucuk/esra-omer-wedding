@@ -114,7 +114,9 @@
   background: var(--c-line);
   border-radius: 3px;
   overflow: hidden;
-  margin: 0 auto;
+  /* Top gap here (the shorthand would otherwise override the JSX mt-* class),
+     so there's clear breathing room between the options and the bar. */
+  margin: 1.75rem auto 0;
 }
 .eo-advance-track > span {
   display: block;
