@@ -33,9 +33,14 @@ export default function Menu({ onClose }) {
       >
         ×
       </button>
-      <div className="mb-2 opacity-90">
+      <button
+        type="button"
+        onClick={() => go('/')}
+        aria-label="Ana sayfa"
+        className="mb-2 opacity-90"
+      >
         <Emblem size={56} tone="light" />
-      </div>
+      </button>
       <div
         lang="en"
         className="font-sans uppercase tracking-[0.3em] text-[11px] text-[#cdd2c4] mb-6"

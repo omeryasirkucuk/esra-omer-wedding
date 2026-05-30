@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Menu from './Menu.jsx'
 import ProfileChip from './ProfileChip.jsx'
 
-// Pages where the guest has an identity they may want to edit.
+// Hub pages where the name chip belongs. Exact match only — NOT individual game
+// screens (/oyunlar/:id), which have their own top-left "‹ Oyunlar" back link.
 const PROFILE_ROUTES = ['/pano', '/album', '/oyunlar']
 
 // App shell: a fixed menu trigger on every page plus the cinematic, soft
@@ -14,7 +15,7 @@ export default function Layout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const showChip = PROFILE_ROUTES.some((p) => location.pathname.startsWith(p))
+  const showChip = PROFILE_ROUTES.includes(location.pathname)
 
   return (
     <div className="min-h-screen paper">

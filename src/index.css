@@ -109,7 +109,7 @@
   to   { width: 100%; }
 }
 .eo-advance-track {
-  width: 140px;
+  width: 100%;
   height: 3px;
   background: var(--c-line);
   border-radius: 3px;
