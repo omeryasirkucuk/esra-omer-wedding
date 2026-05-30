@@ -29,6 +29,10 @@ export const wedding = {
     address: 'Fatih Mah. Cumhuriyet Cad. İnci Sok. No:11, Beykoz / İstanbul',
     // Used for the "Yol Tarifi Al" button.
     mapsQuery: 'Family Garden Kavacık, Fatih Mah. Cumhuriyet Cad. İnci Sok. No:11 Beykoz İstanbul',
+    // Exact pin. The street-address text geocodes to the wrong block on some
+    // map providers (Apple Calendar dropped the pin on "Figan Sk."), so every
+    // map link and calendar entry is anchored on these coordinates instead.
+    geo: { lat: 41.085757, lng: 29.113023 },
   },
 }
 

@@ -66,6 +66,7 @@ const WEDDING_DEFAULTS = {
   venue: {
     name: 'Family Garden Kavacık',
     address: 'Fatih Mah. Cumhuriyet Cad. İnci Sok. No:11, Beykoz / İstanbul',
+    geo: { lat: 41.085757, lng: 29.113023 },
   },
 }
 function icsStamp(d) {
@@ -85,7 +86,8 @@ app.get('/api/calendar.ics', async (_req, res) => {
   }
   const start = new Date(w.dateISO)
   const end = new Date(start.getTime() + 4 * 60 * 60 * 1000)
-  const ics = [
+  const locationText = `${w.venue.name}, ${w.venue.address}`
+  const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//esra-omer//wedding//TR',
@@ -96,10 +98,20 @@ app.get('/api/calendar.ics', async (_req, res) => {
     `DTEND:${icsStamp(end)}`,
     `SUMMARY:${w.bride} & ${w.groom} — Düğün`,
     `DESCRIPTION:${w.bride} & ${w.groom}'in düğününe davetlisiniz.`,
-    `LOCATION:${w.venue.name}, ${w.venue.address}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
+    `LOCATION:${locationText}`,
+  ]
+  // Anchor the map pin on the exact venue coordinates. Without GEO, Apple
+  // Calendar geocodes the address text and drops the pin on the wrong block.
+  const geo = w.venue.geo
+  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+    lines.push(`GEO:${geo.lat};${geo.lng}`)
+    lines.push(
+      `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=${locationText};` +
+        `X-APPLE-RADIUS=72;X-TITLE=${w.venue.name}:geo:${geo.lat},${geo.lng}`
+    )
+  }
+  lines.push('END:VEVENT', 'END:VCALENDAR')
+  const ics = lines.join('\r\n')
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
   res.setHeader('Content-Disposition', 'inline; filename="esra-omer-dugun.ics"')
   res.send(ics)

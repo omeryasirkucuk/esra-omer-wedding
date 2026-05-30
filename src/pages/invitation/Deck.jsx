@@ -42,12 +42,21 @@ function Panel({ children, emblem = true, cue = true }) {
   )
 }
 
+// Anchor map links on the exact coordinates when available so Google drops the
+// pin on the venue, not on whatever the street address happens to geocode to.
+// Falls back to the text query if no coordinates are configured.
+function venueAnchor(wedding) {
+  const geo = wedding.venue.geo
+  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) return `${geo.lat},${geo.lng}`
+  return encodeURIComponent(wedding.venue.mapsQuery)
+}
+
 function mapsDirectionsUrl(wedding) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(wedding.venue.mapsQuery)}`
+  return `https://www.google.com/maps/dir/?api=1&destination=${venueAnchor(wedding)}`
 }
 
 function mapsViewUrl(wedding) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wedding.venue.mapsQuery)}`
+  return `https://www.google.com/maps/search/?api=1&query=${venueAnchor(wedding)}`
 }
 
 export default function Deck() {

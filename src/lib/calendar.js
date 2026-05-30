@@ -16,6 +16,8 @@ function eventFromWedding(w) {
     title: `${w.bride} & ${w.groom} — Düğün`,
     description: `${w.bride} & ${w.groom}'in düğününe davetlisiniz.`,
     location: `${w.venue.name}, ${w.venue.address}`,
+    venueName: w.venue.name,
+    geo: w.venue.geo,
     startISO: start.toISOString(),
     endISO: end.toISOString(),
   }
@@ -23,7 +25,7 @@ function eventFromWedding(w) {
 
 export function buildICS(w) {
   const e = eventFromWedding(w)
-  return [
+  const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//esra-omer//wedding//TR',
@@ -35,9 +37,18 @@ export function buildICS(w) {
     `SUMMARY:${e.title}`,
     `DESCRIPTION:${e.description}`,
     `LOCATION:${e.location}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
+  ]
+  // Anchor the map pin on the exact venue coordinates so the calendar does not
+  // geocode the address text and drop the pin on the wrong block.
+  if (e.geo && Number.isFinite(e.geo.lat) && Number.isFinite(e.geo.lng)) {
+    lines.push(`GEO:${e.geo.lat};${e.geo.lng}`)
+    lines.push(
+      `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=${e.location};` +
+        `X-APPLE-RADIUS=72;X-TITLE=${e.venueName}:geo:${e.geo.lat},${e.geo.lng}`
+    )
+  }
+  lines.push('END:VEVENT', 'END:VCALENDAR')
+  return lines.join('\r\n')
 }
 
 export function downloadICS(w) {
