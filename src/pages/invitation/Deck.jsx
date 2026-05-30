@@ -4,6 +4,7 @@ import Countdown from '../../components/Countdown.jsx'
 import AddToCalendar from '../../components/AddToCalendar.jsx'
 import RsvpForm from './RsvpForm.jsx'
 import { useSite } from '../../lib/siteContent.jsx'
+import venueImage from '../../assets/venue.jpg'
 
 // Scroll to the next snap panel. Used by every "Kaydır" cue.
 function goNext(e) {
@@ -107,17 +108,16 @@ export default function Deck() {
           target="_blank"
           rel="noreferrer"
           className="block w-full max-w-xs md:max-w-sm rounded-2xl overflow-hidden border border-[#e2d6b8] relative"
-          style={{ height: 190, background: 'linear-gradient(135deg,#eef0e6,#e6e4d4 60%,#e9ddc6)' }}
+          style={{ height: 190 }}
           aria-label="Haritada aç"
         >
-          <svg viewBox="0 0 200 150" className="absolute inset-0 w-full h-full">
-            <g stroke="#cdd2c4" strokeWidth="6" fill="none">
-              <path d="M0 55 H200" /><path d="M60 0 V150" /><path d="M0 112 H200" />
-            </g>
-            <path d="M-5 -5 L210 160" stroke="#d8c79e" strokeWidth="9" fill="none" opacity="0.7" />
-            <circle cx="100" cy="58" r="9" fill="#fff" stroke="#b98ca0" strokeWidth="3" />
-            <circle cx="100" cy="58" r="3" fill="#b98ca0" />
-          </svg>
+          <img
+            src={venueImage}
+            alt={wedding.venue.name}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: '50% 44%' }}
+            loading="lazy"
+          />
         </a>
         <h2 className="font-display text-primary text-xl md:text-2xl mt-4 tracking-wide">{wedding.venue.name}</h2>
         <p className="font-display text-muted text-sm md:text-base leading-relaxed mt-2 max-w-xs md:max-w-sm">{wedding.venue.address}</p>
