@@ -5,7 +5,7 @@
 // A "Seç" selection mode lets the admin pick thumbnails across uploaders and
 // bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
 import { useEffect, useState } from 'react'
-import { getUploaders, deleteUpload, mediaUrl } from '../adminApi'
+import { getUploaders, deleteUpload, mediaUrl, fileDownloadUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 
 const selKey = (slug, id) => `${slug}::${id}`
@@ -15,6 +15,7 @@ export default function Albums({ onAuthError }) {
   const [error, setError] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -61,6 +62,65 @@ export default function Albums({ onAuthError }) {
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
       else await alertDialog('Silinemedi, tekrar deneyin.')
+    }
+  }
+
+  // Resolve a selection key back to its full item (for name/type/storedName).
+  function findItem(slug, id) {
+    const u = uploaders.find((x) => x.slug === slug)
+    return u && u.items.find((it) => it.id === id)
+  }
+
+  // Save the selected media. On phones we hand the files to the native share
+  // sheet (so guests can "Save to Photos"); on desktop, where file sharing
+  // isn't supported, each file downloads individually. No zip.
+  async function handleBulkDownload() {
+    if (selected.size === 0 || downloading) return
+    const picks = [...selected]
+      .map((key) => {
+        const [slug, id] = key.split('::')
+        return { slug, item: findItem(slug, id) }
+      })
+      .filter((p) => p.item)
+    if (picks.length === 0) return
+
+    setDownloading(true)
+    try {
+      // Preferred on mobile: native share → Save to Photos.
+      if (typeof navigator !== 'undefined' && navigator.canShare) {
+        try {
+          const files = await Promise.all(
+            picks.map(async ({ slug, item }) => {
+              const res = await fetch(fileDownloadUrl(slug, item))
+              if (!res.ok) throw new Error('fetch failed')
+              const blob = await res.blob()
+              return new File([blob], item.originalName || item.storedName, {
+                type: blob.type || item.mime || 'application/octet-stream',
+              })
+            }),
+          )
+          if (navigator.canShare({ files })) {
+            await navigator.share({ files })
+            return
+          }
+        } catch (e) {
+          if (e && e.name === 'AbortError') return // user dismissed the sheet
+          // anything else → fall through to per-file downloads
+        }
+      }
+
+      // Desktop / unsupported: download each file on its own.
+      for (const { slug, item } of picks) {
+        const a = document.createElement('a')
+        a.href = fileDownloadUrl(slug, item)
+        a.download = item.originalName || ''
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        await new Promise((r) => setTimeout(r, 400))
+      }
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -114,14 +174,24 @@ export default function Albums({ onAuthError }) {
       {selecting && (
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 mb-4 rounded-full border border-line bg-surface/90 backdrop-blur px-4 py-2">
           <span className="label">{selected.size} seçili</span>
-          <button
-            type="button"
-            onClick={handleBulkDelete}
-            disabled={selected.size === 0}
-            className="btn-lux disabled:opacity-40"
-          >
-            Seçilenleri Sil
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkDownload}
+              disabled={selected.size === 0 || downloading}
+              className="btn-lux disabled:opacity-40"
+            >
+              {downloading ? 'İndiriliyor…' : 'Seçilenleri İndir'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selected.size === 0}
+              className="btn-lux disabled:opacity-40"
+            >
+              Seçilenleri Sil
+            </button>
+          </div>
         </div>
       )}
 

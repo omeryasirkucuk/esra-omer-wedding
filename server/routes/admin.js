@@ -5,6 +5,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
+import { downloadFileHandler } from './uploadsDownload.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -61,9 +62,13 @@ adminRouter.post('/login', (req, res) => {
   res.json({ token: tokenFor(username), username })
 })
 
-// Everything below requires a valid token.
+// Everything below requires a valid token. Normally the Bearer header carries
+// it, but streamed file downloads are plain browser navigations that can't set
+// headers, so a `?token=` query fallback is accepted as well.
 adminRouter.use((req, res, next) => {
-  const user = verify((req.headers.authorization || '').replace(/^Bearer /, ''))
+  const headerToken = (req.headers.authorization || '').replace(/^Bearer /, '')
+  const token = headerToken || (typeof req.query.token === 'string' ? req.query.token : '')
+  const user = verify(token)
   if (!user) return res.status(401).json({ error: 'unauthorized' })
   req.adminUser = user
   next()
@@ -164,6 +169,9 @@ adminRouter.get('/uploaders', async (req, res, next) => {
     next(e)
   }
 })
+
+// Stream one stored album file (the client downloads each selected file).
+adminRouter.get('/uploads/download', downloadFileHandler)
 
 adminRouter.post('/uploads/delete', async (req, res, next) => {
   try {

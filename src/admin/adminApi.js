@@ -110,6 +110,20 @@ export const saveSiteContent = (payload) => put('/api/admin/site-content', paylo
 // the guest site shows only the invitation.
 export const setSiteOpen = (open) => put('/api/admin/site-open', { open })
 
+// Same-origin URL that streams one stored album file. Used both for direct
+// downloads and to fetch the bytes for the mobile share sheet. The token rides
+// in the query string because downloads/navigations can't set headers.
+export function fileDownloadUrl(slug, item) {
+  const q = new URLSearchParams({
+    token: getToken() || '',
+    slug,
+    file: item.storedName,
+    name: item.originalName || item.storedName,
+    type: item.mime || '',
+  })
+  return `${BASE}/api/admin/uploads/download?${q.toString()}`
+}
+
 // Game scoreboard (who played what, the result, and per-game detail).
 export const getScores = () => get('/api/admin/scores')
 export const deleteScore = (id) => post('/api/admin/scores/delete', { id })

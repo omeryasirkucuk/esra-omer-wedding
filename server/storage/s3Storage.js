@@ -180,6 +180,15 @@ export const s3StorageDriver = {
     }
   },
 
+  // Raw readable stream for one stored upload. Used by the admin "download
+  // selected" zip so files never round-trip through the browser via S3.
+  async readStream(slug, storedName) {
+    const out = await client.send(
+      new GetObjectCommand({ Bucket: BUCKET, Key: `uploads/${slug}/${storedName}` }),
+    )
+    return out.Body
+  },
+
   // Presign any bucket key (used for the invitation music).
   async signKey(key) {
     return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), {

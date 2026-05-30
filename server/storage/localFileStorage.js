@@ -142,6 +142,12 @@ export const localStorageDriver = {
     return true
   },
 
+  // Raw readable stream for one stored upload. Used by the admin "download
+  // selected" zip so files never round-trip through the browser.
+  async readStream(slug, storedName) {
+    return fs.createReadStream(path.join(UPLOADS_DIR, slug, storedName))
+  },
+
   // No presigning locally; the music falls back to a file in public/music.
   async signKey() {
     return null
