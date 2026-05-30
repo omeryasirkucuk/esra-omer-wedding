@@ -5,7 +5,7 @@
 // A "Seç" selection mode lets the admin pick thumbnails across uploaders and
 // bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
 import { useEffect, useState } from 'react'
-import { getUploaders, deleteUpload, mediaUrl, fileDownloadUrl } from '../adminApi'
+import { getUploaders, deleteUpload, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 
 const selKey = (slug, id) => `${slug}::${id}`
@@ -71,23 +71,29 @@ export default function Albums({ onAuthError }) {
     return u && u.items.find((it) => it.id === id)
   }
 
-  // Save the selected media. On phones we hand the files to the native share
-  // sheet (so guests can "Save to Photos"); on desktop, where file sharing
-  // isn't supported, each file downloads individually. No zip.
+  // Save the selected media. On phones/tablets we hand the files to the native
+  // share sheet (Save to Photos); on desktop we download a single ZIP.
   async function handleBulkDownload() {
     if (selected.size === 0 || downloading) return
     const picks = [...selected]
       .map((key) => {
         const [slug, id] = key.split('::')
-        return { slug, item: findItem(slug, id) }
+        return { slug, id, item: findItem(slug, id) }
       })
       .filter((p) => p.item)
     if (picks.length === 0) return
 
+    // Touch devices (phone/tablet) get the share sheet. A Mac reports
+    // canShare({files}) too, but its sheet has no "save to disk" — so anything
+    // that isn't a coarse pointer / multi-touch screen takes the ZIP path.
+    const isTouch =
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 1)
+
     setDownloading(true)
     try {
-      // Preferred on mobile: native share → Save to Photos.
-      if (typeof navigator !== 'undefined' && navigator.canShare) {
+      // Mobile: native share → Save to Photos.
+      if (isTouch && navigator.canShare) {
         try {
           const files = await Promise.all(
             picks.map(async ({ slug, item }) => {
@@ -105,20 +111,17 @@ export default function Albums({ onAuthError }) {
           }
         } catch (e) {
           if (e && e.name === 'AbortError') return // user dismissed the sheet
-          // anything else → fall through to per-file downloads
+          // anything else → fall through to the ZIP download
         }
       }
 
-      // Desktop / unsupported: download each file on its own.
-      for (const { slug, item } of picks) {
-        const a = document.createElement('a')
-        a.href = fileDownloadUrl(slug, item)
-        a.download = item.originalName || ''
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        await new Promise((r) => setTimeout(r, 400))
-      }
+      // Desktop: one ZIP, one download.
+      const a = document.createElement('a')
+      a.href = selectedZipUrl(picks.map(({ slug, id }) => ({ slug, id })))
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
     } finally {
       setDownloading(false)
     }

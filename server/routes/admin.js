@@ -5,7 +5,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
-import { downloadFileHandler } from './uploadsDownload.js'
+import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -170,8 +170,10 @@ adminRouter.get('/uploaders', async (req, res, next) => {
   }
 })
 
-// Stream one stored album file (the client downloads each selected file).
+// Mobile: stream one stored file (the client fetches each for the share sheet).
 adminRouter.get('/uploads/download', downloadFileHandler)
+// Desktop: stream the selected files as a single ZIP.
+adminRouter.get('/uploads/download-zip', downloadZipHandler)
 
 adminRouter.post('/uploads/delete', async (req, res, next) => {
   try {

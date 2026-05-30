@@ -124,6 +124,14 @@ export function fileDownloadUrl(slug, item) {
   return `${BASE}/api/admin/uploads/download?${q.toString()}`
 }
 
+// Same-origin URL that streams the selected media as one ZIP (desktop). `items`
+// is [{slug, id}]; the token rides in the query string for the same reason.
+export function selectedZipUrl(items) {
+  const payload = btoa(unescape(encodeURIComponent(JSON.stringify(items)))) // base64 of UTF-8
+  const q = new URLSearchParams({ token: getToken() || '', items: payload })
+  return `${BASE}/api/admin/uploads/download-zip?${q.toString()}`
+}
+
 // Game scoreboard (who played what, the result, and per-game detail).
 export const getScores = () => get('/api/admin/scores')
 export const deleteScore = (id) => post('/api/admin/scores/delete', { id })
