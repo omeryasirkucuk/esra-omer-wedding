@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Menu from './Menu.jsx'
+import ProfileChip from './ProfileChip.jsx'
+
+// Pages where the guest has an identity they may want to edit.
+const PROFILE_ROUTES = ['/pano', '/album', '/oyunlar']
 
 // App shell: a fixed menu trigger on every page plus the cinematic, soft
 // route transition (gentle fade + scale) the design calls for. Music lives
@@ -10,8 +14,13 @@ export default function Layout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const showChip = PROFILE_ROUTES.some((p) => location.pathname.startsWith(p))
+
   return (
     <div className="min-h-screen paper">
+      {/* Rendered here (outside the animated <main>) so it's truly viewport-
+          fixed, consistent on every page, and never overlaps the menu button. */}
+      {showChip && <ProfileChip />}
       <button
         onClick={() => setMenuOpen(true)}
         aria-label="Menü"

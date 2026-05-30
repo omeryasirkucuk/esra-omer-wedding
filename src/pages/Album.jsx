@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Emblem from '../components/Emblem.jsx'
 import Sprig from '../components/Sprig.jsx'
 import IdentityPrompt from '../components/IdentityPrompt.jsx'
-import ProfileChip from '../components/ProfileChip.jsx'
 import { api } from '../lib/api.js'
 import { getProfile, hasProfile } from '../lib/identity.js'
 import { confirmDialog } from '../lib/confirm.js'
@@ -64,7 +63,7 @@ function Dropzone({ onFiles }) {
   )
 }
 
-function AlbumView({ onProfileChange }) {
+function AlbumView() {
   const [queue, setQueue] = useState([])
   const [gallery, setGallery] = useState([])
 
@@ -140,8 +139,6 @@ function AlbumView({ onProfileChange }) {
 
   return (
     <section className="min-h-[100svh] flex flex-col items-center px-6 pt-20 pb-16">
-      <ProfileChip onChange={onProfileChange} className="fixed top-4 right-16 z-40" />
-
       <Emblem className="w-12 md:w-16" linkHome />
       <p className="label mt-5 md:text-[0.7rem]">Düğün Albümü</p>
       <p className="font-display italic text-primary text-xl md:text-3xl mt-1 mb-3">
@@ -165,7 +162,5 @@ export default function Album() {
     return <IdentityPrompt onDone={setProfile} />
   }
 
-  // ProfileChip handles re-entry inline and reports the new profile here so the
-  // cached display name stays in sync.
-  return <AlbumView onProfileChange={setProfile} />
+  return <AlbumView />
 }

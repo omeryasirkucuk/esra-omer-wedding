@@ -47,11 +47,13 @@ export function saveProfile({ firstName, lastName }) {
     displayName: last ? `${first} ${last.charAt(0).toUpperCase()}.` : first,
   }
   localStorage.setItem(NAME_KEY, JSON.stringify(profile))
+  window.dispatchEvent(new Event('eo-profile')) // let listeners (ProfileChip) update live
   return profile
 }
 
 export function clearProfile() {
   localStorage.removeItem(NAME_KEY)
+  window.dispatchEvent(new Event('eo-profile'))
 }
 
 export function hasProfile() {
