@@ -9,6 +9,14 @@ function toICSDate(iso) {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
 
+// iCalendar property-parameter values that contain ":", ";" or "," must be
+// wrapped in double quotes (RFC 5545 §3.1). The structured-location X-ADDRESS
+// holds the street address ("No:11", commas); an unquoted ":" truncates the
+// parameter and Apple Calendar drops the map entirely.
+function icsParam(value) {
+  return `"${String(value).replace(/"/g, "'").replace(/[\r\n]+/g, ' ')}"`
+}
+
 function eventFromWedding(w) {
   const start = new Date(w.dateISO)
   const end = new Date(start.getTime() + 4 * 60 * 60 * 1000)
@@ -43,8 +51,8 @@ export function buildICS(w) {
   if (e.geo && Number.isFinite(e.geo.lat) && Number.isFinite(e.geo.lng)) {
     lines.push(`GEO:${e.geo.lat};${e.geo.lng}`)
     lines.push(
-      `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=${e.location};` +
-        `X-APPLE-RADIUS=72;X-TITLE=${e.venueName}:geo:${e.geo.lat},${e.geo.lng}`
+      `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=${icsParam(e.location)};` +
+        `X-APPLE-RADIUS=72;X-TITLE=${icsParam(e.venueName)}:geo:${e.geo.lat},${e.geo.lng}`
     )
   }
   lines.push('END:VEVENT', 'END:VCALENDAR')
