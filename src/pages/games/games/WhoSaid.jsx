@@ -1,7 +1,8 @@
 // "Kim Demiş?": a quote is shown and the guest guesses who said it — Esra or
-// Ömer. The correct answer is revealed, then "Sıradaki" advances. Gentle
-// correct/total tally at the end. The couple can edit the quotes below.
-import { useEffect, useState } from 'react'
+// Ömer. The correct answer is revealed, then it auto-advances after a short
+// delay. Gentle correct/total tally at the end. The couple can edit the quotes
+// below.
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../../lib/api.js'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
@@ -57,6 +58,12 @@ export default function WhoSaid() {
   const current = rounds[index]
   const answered = picked !== null
 
+  // Holds the auto-advance timeout id so it can be cleared on unmount/restart.
+  const advanceTimer = useRef(null)
+
+  // Clear any pending auto-advance timer when the component unmounts.
+  useEffect(() => () => clearTimeout(advanceTimer.current), [])
+
   // Result label shared by the score submission and the end scoreboard.
   const resultLabel = `${correct}/${total} doğru`
 
@@ -69,6 +76,7 @@ export default function WhoSaid() {
   }))
 
   const restart = () => {
+    clearTimeout(advanceTimer.current)
     setIndex(0)
     setPicked(null)
     setCorrect(0)
@@ -85,12 +93,15 @@ export default function WhoSaid() {
       ...prev,
       { alinti: current.quote, cevap: name, dogru: current.who, ok },
     ])
-  }
-
-  const next = () => {
-    if (index + 1 >= total) return setDone(true)
-    setIndex((n) => n + 1)
-    setPicked(null)
+    // Reveal styling, lock taps, then auto-advance after ~1s.
+    advanceTimer.current = setTimeout(() => {
+      if (index + 1 >= total) {
+        setDone(true)
+      } else {
+        setIndex((n) => n + 1)
+        setPicked(null)
+      }
+    }, 1000)
   }
 
   if (done) {
@@ -123,7 +134,7 @@ export default function WhoSaid() {
           const isPicked = name === picked
           let style
           if (answered && isCorrect) {
-            style = { background: 'var(--c-primary-soft)', color: '#fff', borderColor: 'var(--c-primary)' }
+            style = { background: '#5f9c63', color: '#fff', borderColor: '#4f8a54' }
           } else if (answered && isPicked && !isCorrect) {
             style = { background: 'var(--c-rose)', color: '#fff', borderColor: 'var(--c-rose)' }
           }
@@ -141,12 +152,6 @@ export default function WhoSaid() {
           )
         })}
       </div>
-
-      {answered && (
-        <button type="button" onClick={next} className="btn-lux md:text-[0.74rem] mt-6">
-          {index + 1 >= total ? 'Bitir' : 'Sıradaki'}
-        </button>
-      )}
     </GameShell>
   )
 }

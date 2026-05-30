@@ -1,8 +1,9 @@
 // "Çifti Tanı" quiz: walks through the questions in src/data/quiz.js, one at a
 // time, with a thin gold progress bar. Tapping an option reveals correct/wrong
-// tinting; a "Sıradaki" button advances. Ends with a gentle correct/total tally.
-// The couple can edit the questions and answers directly in src/data/quiz.js.
-import { useEffect, useState } from 'react'
+// tinting and then auto-advances after a short delay. Ends with a gentle
+// correct/total tally. The couple can edit the questions and answers directly
+// in src/data/quiz.js.
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
@@ -35,6 +36,12 @@ export default function Quiz() {
   const current = quizQuestionsActive[index]
   const answered = selected !== null
 
+  // Holds the auto-advance timeout id so it can be cleared on unmount/restart.
+  const advanceTimer = useRef(null)
+
+  // Clear any pending auto-advance timer when the component unmounts.
+  useEffect(() => () => clearTimeout(advanceTimer.current), [])
+
   // Result label shared by the score submission and the end scoreboard.
   const resultLabel = `${correct}/${total} doğru`
 
@@ -47,6 +54,7 @@ export default function Quiz() {
   }))
 
   const restart = () => {
+    clearTimeout(advanceTimer.current)
     setIndex(0)
     setSelected(null)
     setCorrect(0)
@@ -68,15 +76,15 @@ export default function Quiz() {
         ok,
       },
     ])
-  }
-
-  const next = () => {
-    if (index + 1 >= total) {
-      setDone(true)
-      return
-    }
-    setIndex((n) => n + 1)
-    setSelected(null)
+    // Reveal styling, lock taps, then auto-advance after ~1s.
+    advanceTimer.current = setTimeout(() => {
+      if (index + 1 >= total) {
+        setDone(true)
+      } else {
+        setIndex((n) => n + 1)
+        setSelected(null)
+      }
+    }, 1000)
   }
 
   if (done) {
@@ -124,7 +132,7 @@ export default function Quiz() {
             let style
             if (answered && isCorrect) {
               tone = 'text-primary'
-              style = { background: 'var(--c-primary-soft)', color: '#fff', borderColor: 'var(--c-primary)' }
+              style = { background: '#5f9c63', color: '#fff', borderColor: '#4f8a54' }
             } else if (answered && isPicked && !isCorrect) {
               tone = 'text-rose'
               style = { background: 'var(--c-rose)', color: '#fff', borderColor: 'var(--c-rose)' }
@@ -145,14 +153,6 @@ export default function Quiz() {
             )
           })}
         </div>
-
-        {answered && (
-          <div className="text-center mt-7 animate-fadeUp">
-            <button type="button" onClick={next} className="btn-lux md:text-[0.74rem]">
-              {index + 1 >= total ? 'Bitir' : 'Sıradaki'}
-            </button>
-          </div>
-        )}
       </div>
     </GameShell>
   )
