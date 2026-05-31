@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { downloadFileHandler } from './uploadsDownload.js'
+import { thumbHandler } from '../lib/thumbnails.js'
 
 // Album uploads. The front-end uploads one file per request (so each gets its
 // own progress bar) and runs a few in parallel. Files first land in a temp dir,
@@ -62,6 +63,9 @@ uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
 // fetch() cannot read into a blob without S3 CORS — streaming server-side avoids
 // that entirely and works for both the local and S3 drivers.
 uploadsRouter.get('/file', downloadFileHandler)
+
+// GET /api/uploads/thumb?slug=&file=  → small cached WebP for the grids.
+uploadsRouter.get('/thumb', thumbHandler)
 
 // GET /api/uploads/public  → the shared "Düğün Albümü", newest first. No auth;
 // only items guests/admin chose to make public are ever listed here.

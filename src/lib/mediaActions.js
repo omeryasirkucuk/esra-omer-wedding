@@ -17,6 +17,16 @@ export function basename(url) {
   return String(url || '').split('/').pop() || 'medya'
 }
 
+// Small cached-thumbnail URL for grid display. Parses the "/media/<slug>/<file>"
+// path the same way as the save URL. Only used for images; video tiles show a
+// placeholder instead of hitting this.
+export function thumbUrl(item) {
+  const parts = String(item?.url || '').split('/')
+  const slug = parts[2] || ''
+  const file = parts[3] || ''
+  return `${API_BASE}/api/uploads/thumb?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
+}
+
 // Same-origin streaming URL for saving an item. The display URL ("/media/...")
 // 302-redirects to a presigned S3 URL in production, which fetch() cannot read
 // into a blob without S3 CORS; "/api/uploads/file" streams the bytes through our

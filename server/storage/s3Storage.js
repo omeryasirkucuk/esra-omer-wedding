@@ -16,6 +16,7 @@ import {
   S3Client,
   GetObjectCommand,
   PutObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -187,6 +188,29 @@ export const s3StorageDriver = {
       new GetObjectCommand({ Bucket: BUCKET, Key: `uploads/${slug}/${storedName}` }),
     )
     return out.Body
+  },
+
+  // True when a key exists — used to serve a cached thumbnail derivative.
+  async hasFile(slug, name) {
+    try {
+      await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: `uploads/${slug}/${name}` }))
+      return true
+    } catch (err) {
+      if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) return false
+      throw err
+    }
+  },
+
+  // Write a small derivative (e.g. a thumbnail) next to the original.
+  async putBytes(slug, name, buffer, contentType) {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: `uploads/${slug}/${name}`,
+        Body: buffer,
+        ContentType: contentType,
+      }),
+    )
   },
 
   // Presign any bucket key (used for the invitation music).

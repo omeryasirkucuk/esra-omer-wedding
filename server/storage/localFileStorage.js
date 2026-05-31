@@ -148,6 +148,18 @@ export const localStorageDriver = {
     return fs.createReadStream(path.join(UPLOADS_DIR, slug, storedName))
   },
 
+  // True when a file exists — used to serve a cached thumbnail derivative.
+  async hasFile(slug, name) {
+    return fs.existsSync(path.join(UPLOADS_DIR, slug, name))
+  },
+
+  // Write a small derivative (e.g. a thumbnail) next to the original.
+  async putBytes(slug, name, buffer) {
+    const dir = path.join(UPLOADS_DIR, slug)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, name), buffer)
+  },
+
   // No presigning locally; the music falls back to a file in public/music.
   async signKey() {
     return null
