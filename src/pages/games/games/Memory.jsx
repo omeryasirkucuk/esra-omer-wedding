@@ -13,15 +13,17 @@ const PAIR_COUNT = 8 // 4x4 board = 8 pairs
 // Default symbol faces, used when the couple hasn't uploaded 8 photos yet.
 const DEFAULT_FACES = ['🌿', '💍', '🤍', '🕊️', '🌸', '✨', '🥂', '💐']
 
-// Pull up to 8 non-empty photo urls from the saved games content. When fewer
-// than 8 are set the game falls back to the default symbol faces. Each returned
-// face carries a `type` so the card knows whether to render an <img> or text.
+// Build exactly PAIR_COUNT faces: use whatever photos the couple has uploaded
+// (in order) and top up the remaining pairs with default symbols, so the 4x4
+// board always works — even with just one photo, or none at all. Each face
+// carries a `type` so the card knows whether to render an <img> or text.
 function resolveFaces(memory) {
   const urls = Array.isArray(memory) ? memory.filter((u) => typeof u === 'string' && u) : []
-  if (urls.length >= PAIR_COUNT) {
-    return urls.slice(0, PAIR_COUNT).map((url) => ({ type: 'image', value: url }))
+  const faces = urls.slice(0, PAIR_COUNT).map((url) => ({ type: 'image', value: url }))
+  for (let i = 0; faces.length < PAIR_COUNT; i++) {
+    faces.push({ type: 'symbol', value: DEFAULT_FACES[i % DEFAULT_FACES.length] })
   }
-  return DEFAULT_FACES.map((face) => ({ type: 'symbol', value: face }))
+  return faces
 }
 
 function buildDeck(faces) {
