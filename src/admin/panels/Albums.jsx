@@ -4,7 +4,7 @@
 //
 // A "Seç" selection mode lets the admin pick thumbnails across uploaders and
 // bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 import MediaViewer from '../../pages/album/MediaViewer.jsx'
@@ -18,7 +18,31 @@ export default function Albums({ onAuthError }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
   const [downloading, setDownloading] = useState(false)
-  const [viewer, setViewer] = useState(null) // { slug, index } of the open item
+  const [viewer, setViewer] = useState(null) // { key, index } of the open item
+
+  // One section per guest (uploaderId), merging the folders a rename may have
+  // split into (e.g. "Ömer" + "Ömer K."). Each item keeps its own folder slug in
+  // `_slug` so per-item actions (delete, share, public) still address the right
+  // folder. Only non-deleted media, newest first.
+  const sections = useMemo(() => {
+    if (!uploaders) return []
+    const byId = new Map()
+    for (const u of uploaders) {
+      const live = u.items.filter((it) => !it.deleted).map((it) => ({ ...it, _slug: u.slug }))
+      if (!live.length) continue
+      const key = u.uploaderId || u.slug
+      let sec = byId.get(key)
+      if (!sec) {
+        sec = { key, displayName: u.displayName, items: [] }
+        byId.set(key, sec)
+      }
+      sec.items.push(...live)
+      if ((u.displayName || '').length > (sec.displayName || '').length) sec.displayName = u.displayName
+    }
+    const out = [...byId.values()]
+    for (const s of out) s.items.sort((a, b) => Date.parse(b.uploadedAt) - Date.parse(a.uploadedAt))
+    return out
+  }, [uploaders])
 
   useEffect(() => {
     let alive = true
@@ -208,8 +232,7 @@ export default function Albums({ onAuthError }) {
   if (error) return <p className="text-muted text-center py-10">Veriler yüklenemedi.</p>
   if (!uploaders) return <p className="text-muted text-center py-10">Yükleniyor…</p>
 
-  const liveItems = (u) => u.items.filter((it) => !it.deleted)
-  const grandTotal = uploaders.reduce((n, u) => n + liveItems(u).length, 0)
+  const grandTotal = sections.reduce((n, s) => n + s.items.length, 0)
 
   if (grandTotal === 0)
     return <p className="text-muted text-center py-10">Henüz yüklenen medya yok</p>
@@ -229,79 +252,60 @@ export default function Albums({ onAuthError }) {
         )}
       </div>
 
-      {selecting && (
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 mb-4 rounded-full border border-line bg-surface/90 backdrop-blur px-4 py-2">
+      {selecting && selected.size > 0 && (
+        <div className="sticky top-0 z-10 mb-4 flex items-center justify-between gap-2 rounded-full border border-line bg-surface/95 backdrop-blur px-4 py-2">
           <span className="label shrink-0">{selected.size} seçili</span>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleBulkSetPublic}
-              disabled={selected.size === 0}
-              className="btn-lux disabled:opacity-40"
-            >
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <button type="button" onClick={handleBulkSetPublic} className="font-sans uppercase text-[0.58rem] tracking-[0.12em] rounded-full border border-gold text-gold px-3 py-1.5">
               {allSelectedPublic ? 'Albümden Çıkar' : 'Albüme Ekle'}
             </button>
-            <button
-              type="button"
-              onClick={handleBulkDownload}
-              disabled={selected.size === 0 || downloading}
-              className="btn-lux disabled:opacity-40"
-            >
-              {downloading ? 'İndiriliyor…' : 'Seçilenleri İndir'}
+            <button type="button" onClick={handleBulkDownload} disabled={downloading} className="font-sans uppercase text-[0.58rem] tracking-[0.12em] rounded-full border border-line text-primary px-3 py-1.5 disabled:opacity-40">
+              {downloading ? 'İndiriliyor…' : 'İndir'}
             </button>
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              disabled={selected.size === 0}
-              className="btn-lux disabled:opacity-40"
-            >
-              Seçilenleri Sil
+            <button type="button" onClick={handleBulkDelete} className="font-sans uppercase text-[0.58rem] tracking-[0.12em] rounded-full border border-rose/50 text-rose px-3 py-1.5">
+              Sil
             </button>
           </div>
         </div>
       )}
 
       <div className="space-y-8">
-        {uploaders.map((u) => {
-          const items = liveItems(u)
-          if (items.length === 0) return null
-          return (
-            <section key={u.slug}>
-              <h3 className="font-display text-xl text-primary mb-1">{u.displayName}</h3>
-              <p className="label-gold mb-3">{items.length} medya</p>
+        {sections.map((s) => (
+          <section key={s.key}>
+            <h3 className="font-display text-xl text-primary mb-1">{s.displayName}</h3>
+            <p className="label-gold mb-3">{s.items.length} medya</p>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                {items.map((it, i) => (
-                  <Thumb
-                    key={it.id}
-                    item={it}
-                    selecting={selecting}
-                    selected={selected.has(selKey(u.slug, it.id))}
-                    onToggle={() => toggleSelected(u.slug, it.id)}
-                    onDelete={() => handleDelete(u.slug, it.id)}
-                    onOpen={() => setViewer({ slug: u.slug, index: i })}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        })}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+              {s.items.map((it, i) => (
+                <Thumb
+                  key={it._slug + it.id}
+                  item={it}
+                  selecting={selecting}
+                  selected={selected.has(selKey(it._slug, it.id))}
+                  onToggle={() => toggleSelected(it._slug, it.id)}
+                  onDelete={() => handleDelete(it._slug, it.id)}
+                  onOpen={() => setViewer({ key: s.key, index: i })}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
 
       {viewer &&
         (() => {
-          const u = uploaders.find((x) => x.slug === viewer.slug)
-          const vItems = u ? liveItems(u) : []
+          const sec = sections.find((x) => x.key === viewer.key)
+          const vItems = sec ? sec.items : []
           if (!vItems[viewer.index]) return null
           return (
             <MediaViewer
               items={vItems}
               index={viewer.index}
-              onIndexChange={(i) => setViewer({ slug: viewer.slug, index: i })}
+              onIndexChange={(i) => setViewer({ key: viewer.key, index: i })}
               onClose={() => setViewer(null)}
               srcFor={(it) => mediaUrl(it.url)}
-              onDelete={(it) => handleDelete(viewer.slug, it.id)}
-              onTogglePublic={(it) => handleToggleOnePublic(viewer.slug, it)}
+              onDelete={(it) => handleDelete(it._slug, it.id)}
+              onTogglePublic={(it) => handleToggleOnePublic(it._slug, it)}
             />
           )
         })()}
