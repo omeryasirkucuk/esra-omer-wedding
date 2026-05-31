@@ -28,7 +28,7 @@ function VideoThumb() {
   )
 }
 
-function QueueRow({ item }) {
+function QueueRow({ item, onRetry }) {
   const isImage = item.file.type.startsWith('image/')
   const pct = Math.round(item.progress * 100)
   const done = item.status === 'done'
@@ -41,7 +41,15 @@ function QueueRow({ item }) {
         <div className="flex items-center gap-2">
           <span className="font-display text-primary text-[13px] md:text-sm truncate">{item.file.name}</span>
           {done && <span className="text-sage text-xs shrink-0">✓</span>}
-          {failed && <span className="text-rose text-[10px] shrink-0">hata</span>}
+          {failed && (
+            <button
+              type="button"
+              onClick={() => onRetry?.(item)}
+              className="ml-auto shrink-0 font-sans uppercase text-[0.55rem] tracking-[0.16em] text-rose border border-rose/40 rounded-full px-2.5 py-1"
+            >
+              Tekrar dene
+            </button>
+          )}
         </div>
         <div className="mt-1 h-1 rounded-full bg-[#efe6d4] overflow-hidden">
           <div
@@ -54,19 +62,19 @@ function QueueRow({ item }) {
   )
 }
 
-export default function UploadQueue({ items }) {
+export default function UploadQueue({ items, onRetry }) {
   if (!items.length) return null
 
-  const active = items.filter((i) => i.status !== 'done').length
+  const active = items.filter((i) => i.status === 'uploading' || i.status === 'pending').length
+  const failed = items.filter((i) => i.status === 'error').length
+  const label = active > 0 ? `Yükleniyor · ${active}` : failed > 0 ? `Yüklenemedi · ${failed}` : 'Yükleniyor'
 
   return (
     <div className="w-full mt-4">
-      <p className="label-gold mb-1 text-left md:text-[0.7rem]">
-        Yükleniyor{active > 0 ? ` · ${active}` : ''}
-      </p>
+      <p className="label-gold mb-1 text-left md:text-[0.7rem]">{label}</p>
       <ul className="scroll-gold overflow-y-auto max-h-56 pr-1 divide-y divide-[#efe6d4]">
         {items.map((item) => (
-          <QueueRow key={item.id} item={item} />
+          <QueueRow key={item.id} item={item} onRetry={onRetry} />
         ))}
       </ul>
     </div>

@@ -10,6 +10,7 @@ import PublicGallery from './album/PublicGallery.jsx'
 import { runWithConcurrency } from './album/runWithConcurrency.js'
 
 const UPLOAD_CONCURRENCY = 3
+const UPLOAD_ATTEMPTS = 3 // retry transient mobile-network failures before giving up
 
 let queueSeq = 0
 function makeQueueId() {
@@ -84,6 +85,34 @@ function AlbumView() {
     setQueue((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
   }, [])
 
+  // Upload one queued file with a few automatic retries. Mobile connections (5G,
+  // spotty venue Wi-Fi) drop large uploads mid-flight; a couple of retries with a
+  // short backoff turns most of those transient failures into a success instead
+  // of a silently lost photo. Marks the row 'error' only after all attempts fail.
+  const runUpload = useCallback(
+    async (item) => {
+      setItem(item.id, { status: 'uploading', progress: 0 })
+      for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
+        try {
+          await api.uploadFile(item.file, {
+            onProgress: (fraction) => setItem(item.id, { progress: fraction }),
+          })
+          setItem(item.id, { status: 'done', progress: 1 })
+          return true
+        } catch {
+          if (attempt < UPLOAD_ATTEMPTS) {
+            await new Promise((r) => setTimeout(r, 800 * attempt))
+            setItem(item.id, { progress: 0 })
+          } else {
+            setItem(item.id, { status: 'error' })
+          }
+        }
+      }
+      return false
+    },
+    [setItem],
+  )
+
   const enqueue = useCallback(
     async (fileList) => {
       const items = Array.from(fileList).map((file) => ({
@@ -94,24 +123,23 @@ function AlbumView() {
       }))
       setQueue((prev) => [...items, ...prev])
 
-      const tasks = items.map((item) => async () => {
-        setItem(item.id, { status: 'uploading' })
-        try {
-          await api.uploadFile(item.file, {
-            onProgress: (fraction) => setItem(item.id, { progress: fraction }),
-          })
-          setItem(item.id, { status: 'done', progress: 1 })
-        } catch {
-          setItem(item.id, { status: 'error' })
-        }
-      })
-
+      const tasks = items.map((item) => () => runUpload(item))
       await runWithConcurrency(tasks, UPLOAD_CONCURRENCY)
       await refreshGallery()
-      // Drop finished rows after the gallery has caught up.
-      setQueue((prev) => prev.filter((it) => it.status === 'uploading' || it.status === 'pending'))
+      // Keep failed rows visible (so the guest can retry); only clear the done ones.
+      setQueue((prev) => prev.filter((it) => it.status !== 'done'))
     },
-    [refreshGallery, setItem],
+    [refreshGallery, runUpload],
+  )
+
+  // Retry a single failed upload from its row.
+  const retryUpload = useCallback(
+    async (item) => {
+      await runUpload(item)
+      await refreshGallery()
+      setQueue((prev) => prev.filter((it) => it.status !== 'done'))
+    },
+    [runUpload, refreshGallery],
   )
 
   // Raw delete (no confirm here): the thumbnail's inline trash and the
@@ -164,7 +192,7 @@ function AlbumView() {
           <br />
           “Albüme Ekle” dediklerini ise tüm davetliler görür.
         </p>
-        <UploadQueue items={queue} />
+        <UploadQueue items={queue} onRetry={retryUpload} />
         <MyGallery
           items={gallery}
           onDelete={handleDelete}
