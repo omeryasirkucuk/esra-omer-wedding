@@ -7,6 +7,7 @@ import { getProfile, hasProfile } from '../lib/identity.js'
 import { confirmDialog } from '../lib/confirm.js'
 import UploadQueue from './album/UploadQueue.jsx'
 import MyGallery from './album/MyGallery.jsx'
+import PublicGallery from './album/PublicGallery.jsx'
 import { runWithConcurrency } from './album/runWithConcurrency.js'
 
 const UPLOAD_CONCURRENCY = 3
@@ -137,30 +138,80 @@ function AlbumView() {
     [refreshGallery],
   )
 
+  // Promote/demote the given ids to/from the shared public album. Optimistically
+  // flips the local `public` flag, writes server-side, then re-syncs.
+  const handleBulkSetPublic = useCallback(
+    async (ids, isPublic) => {
+      const set = new Set(ids)
+      setGallery((prev) => prev.map((g) => (set.has(g.id) ? { ...g, public: isPublic } : g)))
+      await Promise.allSettled([...set].map((id) => api.setUploadPublic(id, isPublic)))
+      await refreshGallery()
+    },
+    [refreshGallery],
+  )
+
   return (
-    <section className="min-h-[100svh] flex flex-col items-center px-6 pt-20 pb-16">
-      <Emblem className="w-12 md:w-16" linkHome />
-      <p className="label mt-5 md:text-[0.7rem]">Düğün Albümü</p>
-      <p className="font-display italic text-primary text-xl md:text-3xl mt-1 mb-3">
+    <>
+      <p className="font-display italic text-primary text-xl md:text-3xl mt-1 mb-3 text-center">
         Anılarınızı bizimle paylaşın
       </p>
-      <Sprig width={130} className="mb-7" />
+      <Sprig width={130} className="mb-7 mx-auto" />
 
-      <div className="w-full max-w-md md:max-w-2xl">
+      <div className="w-full max-w-md md:max-w-2xl mx-auto">
         <Dropzone onFiles={enqueue} />
         <UploadQueue items={queue} />
-        <MyGallery items={gallery} onDelete={handleDelete} onBulkDelete={handleBulkDelete} />
+        <MyGallery
+          items={gallery}
+          onDelete={handleDelete}
+          onBulkDelete={handleBulkDelete}
+          onBulkSetPublic={handleBulkSetPublic}
+        />
       </div>
-    </section>
+    </>
+  )
+}
+
+const TABS = [
+  { id: 'mine', label: 'Fotoğraflarım' },
+  { id: 'public', label: 'Düğün Albümü' },
+]
+
+function AlbumTabs({ active, onChange }) {
+  return (
+    <nav className="w-full max-w-md md:max-w-2xl mx-auto border-b border-line mt-5 mb-8">
+      <div className="flex justify-center gap-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.id)}
+            className={`relative font-sans uppercase text-xs tracking-[0.18em] px-4 py-3 whitespace-nowrap transition ${
+              active === t.id
+                ? 'text-gold after:absolute after:left-4 after:right-4 after:-bottom-px after:h-0.5 after:bg-gold after:rounded'
+                : 'text-muted hover:text-primary'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </nav>
   )
 }
 
 export default function Album() {
   const [profile, setProfile] = useState(() => getProfile())
+  const [tab, setTab] = useState('mine')
 
   if (!hasProfile() || !profile) {
     return <IdentityPrompt onDone={setProfile} />
   }
 
-  return <AlbumView />
+  return (
+    <section className="min-h-[100svh] flex flex-col items-center px-6 pt-20 pb-16">
+      <Emblem className="w-12 md:w-16" linkHome />
+      <AlbumTabs active={tab} onChange={setTab} />
+      {tab === 'mine' ? <AlbumView /> : <PublicGallery />}
+    </section>
+  )
 }

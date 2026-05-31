@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
+import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -164,7 +165,41 @@ adminRouter.post('/rsvps/delete', async (req, res, next) => {
 
 adminRouter.get('/uploaders', async (req, res, next) => {
   try {
-    res.json({ uploaders: await storage.listAllUploads() })
+    const uploaders = await storage.listAllUploads()
+    const pub = await publicIdSet()
+    for (const u of uploaders) {
+      u.items = (u.items || []).map((i) => ({ ...i, public: pub.has(i.id) }))
+    }
+    res.json({ uploaders })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Promote/demote any guest's upload to the public "Düğün Albümü".
+adminRouter.post('/uploads/public', async (req, res, next) => {
+  try {
+    const { slug, id, displayName } = req.body || {}
+    const makePublic = !!req.body?.public
+    if (!slug || !id) return res.status(400).json({ error: 'slug and id required' })
+    if (!makePublic) {
+      await removePublic(id)
+      return res.status(204).end()
+    }
+    const uploaders = await storage.listAllUploads()
+    const owner = uploaders.find((u) => u.slug === slug)
+    const item = owner?.items.find((i) => i.id === id && !i.deleted)
+    if (!item) return res.status(404).json({ error: 'not found' })
+    await addPublic({
+      id: item.id,
+      slug,
+      url: item.url,
+      type: item.type,
+      uploadedAt: item.uploadedAt,
+      uploaderId: owner.uploaderId,
+      displayName: displayName || owner.displayName || 'Misafir',
+    })
+    res.status(204).end()
   } catch (e) {
     next(e)
   }
@@ -179,6 +214,7 @@ adminRouter.post('/uploads/delete', async (req, res, next) => {
   try {
     const { slug, id } = req.body || {}
     const ok = await storage.softDeleteBySlug(slug, id)
+    if (ok) await removePublic(id)
     res.status(ok ? 204 : 404).end()
   } catch (e) {
     next(e)

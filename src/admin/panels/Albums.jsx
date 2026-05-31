@@ -5,7 +5,7 @@
 // A "Seç" selection mode lets the admin pick thumbnails across uploaders and
 // bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
 import { useEffect, useState } from 'react'
-import { getUploaders, deleteUpload, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
+import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 
 const selKey = (slug, id) => `${slug}::${id}`
@@ -127,6 +127,46 @@ export default function Albums({ onAuthError }) {
     }
   }
 
+  // Flip an item's public flag in local state after a successful server write.
+  function setPublicInState(slug, id, isPublic) {
+    setUploaders((prev) =>
+      prev.map((u) =>
+        u.slug === slug
+          ? { ...u, items: u.items.map((it) => (it.id === id ? { ...it, public: isPublic } : it)) }
+          : u,
+      ),
+    )
+  }
+
+  // Smart promote/demote: if every selected item is already public, the action
+  // removes them from the public album; otherwise it shares them.
+  const selectedItems = [...selected]
+    .map((key) => {
+      const [slug, id] = key.split('::')
+      return { slug, id, item: uploaders ? findItem(slug, id) : null }
+    })
+    .filter((p) => p.item)
+  const allSelectedPublic = selectedItems.length > 0 && selectedItems.every((p) => p.item.public)
+
+  async function handleBulkSetPublic() {
+    if (selectedItems.length === 0) return
+    const makePublic = !allSelectedPublic
+    let authFailed = false
+    for (const { slug, id } of selectedItems) {
+      try {
+        await setUploadPublic(slug, id, makePublic)
+        setPublicInState(slug, id, makePublic)
+      } catch (e) {
+        if (e.name === 'AuthError') {
+          authFailed = true
+          break
+        }
+      }
+    }
+    exitSelection()
+    if (authFailed) onAuthError()
+  }
+
   async function handleBulkDelete() {
     const keys = [...selected]
     if (keys.length === 0) return
@@ -176,8 +216,16 @@ export default function Albums({ onAuthError }) {
 
       {selecting && (
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 mb-4 rounded-full border border-line bg-surface/90 backdrop-blur px-4 py-2">
-          <span className="label">{selected.size} seçili</span>
-          <div className="flex items-center gap-2">
+          <span className="label shrink-0">{selected.size} seçili</span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleBulkSetPublic}
+              disabled={selected.size === 0}
+              className="btn-lux disabled:opacity-40"
+            >
+              {allSelectedPublic ? 'Albümden Çıkar' : 'Albüme Ekle'}
+            </button>
             <button
               type="button"
               onClick={handleBulkDownload}
@@ -252,6 +300,18 @@ function Thumb({ item, onDelete, selecting, selected, onToggle }) {
           loading="lazy"
           className="w-full h-full object-cover"
         />
+      )}
+
+      {item.public && (
+        <span
+          aria-label="Düğün albümünde"
+          className="absolute top-1 left-1 rounded-full bg-gold/90 text-white px-1.5 py-0.5 flex items-center pointer-events-none"
+        >
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18" />
+          </svg>
+        </span>
       )}
 
       {selecting ? (

@@ -93,6 +93,10 @@ export const getUploaders = () => get('/api/admin/uploaders')
 
 export const deleteUpload = (slug, id) => post('/api/admin/uploads/delete', { slug, id })
 
+// Promote/demote any guest's upload to the shared public album.
+export const setUploadPublic = (slug, id, isPublic) =>
+  post('/api/admin/uploads/public', { slug, id, public: isPublic })
+
 export const getPosts = () => get('/api/admin/posts')
 
 export const deletePost = (id) => post('/api/admin/posts/delete', { id })

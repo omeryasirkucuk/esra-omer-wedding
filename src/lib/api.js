@@ -52,6 +52,12 @@ export const api = {
   },
   deleteUpload: (id) => json('POST', `/api/uploads/${id}/delete`, authParams()),
 
+  // Shared "Düğün Albümü": the photos guests have made public.
+  listPublicUploads: () => json('GET', '/api/uploads/public'),
+  // Promote/demote one of my own uploads to/from the public album.
+  setUploadPublic: (id, isPublic) =>
+    json('POST', `/api/uploads/${id}/public`, { ...authParams(), public: isPublic }),
+
   // Returns a configured XHR-based uploader for a single file with progress.
   uploadFile(file, { onProgress } = {}) {
     const { uploaderId, displayName, firstName, lastName } = authParams()

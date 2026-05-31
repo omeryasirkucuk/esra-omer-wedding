@@ -4,11 +4,24 @@
 //
 // Two modes:
 //  - Normal: tapping a thumb does nothing special; a per-item 🗑 deletes it.
-//  - Selection ("Seç"): tapping a thumb toggles a check; a bar bulk-deletes the
-//    selected items at once.
+//    Items already shared to the public album carry a small gold badge.
+//  - Selection ("Seç"): tapping a thumb toggles a check; a bar can bulk-delete
+//    the selected items or promote/demote them to the public "Düğün Albümü".
 
 import { useState } from 'react'
 import { confirmDialog } from '../../lib/confirm.js'
+
+// Small gold pill marking an item that is live in the public album.
+function PublicBadge() {
+  return (
+    <span className="absolute top-1 left-1 rounded-full bg-gold/90 text-white px-1.5 py-0.5 flex items-center gap-0.5 pointer-events-none">
+      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18" />
+      </svg>
+    </span>
+  )
+}
 
 function GalleryItem({ item, onDelete, selecting, selected, onToggle }) {
   const isVideo = item.type?.startsWith('video')
@@ -33,6 +46,7 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle }) {
           ▶
         </span>
       )}
+      {item.public && !selecting && <PublicBadge />}
 
       {selecting ? (
         <>
@@ -71,7 +85,7 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle }) {
   )
 }
 
-export default function MyGallery({ items, onDelete, onBulkDelete }) {
+export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPublic }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
 
@@ -97,6 +111,19 @@ export default function MyGallery({ items, onDelete, onBulkDelete }) {
     exitSelection()
   }
 
+  // One button, smart label: if every selected item is already public, the
+  // action removes them from the album; otherwise it shares them.
+  const selectedItems = items.filter((i) => selected.has(i.id))
+  const allPublic = selectedItems.length > 0 && selectedItems.every((i) => i.public)
+  const visibilityLabel = allPublic ? 'Albümden Çıkar' : 'Albüme Ekle'
+
+  const bulkSetPublic = async () => {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    await onBulkSetPublic(ids, !allPublic)
+    exitSelection()
+  }
+
   return (
     <section className="w-full mt-10">
       <div className="flex items-center justify-center gap-2 mb-4">
@@ -119,16 +146,26 @@ export default function MyGallery({ items, onDelete, onBulkDelete }) {
       )}
 
       {selecting && (
-        <div className="flex items-center justify-between gap-3 mb-4 rounded-full border border-line bg-surface/70 backdrop-blur px-4 py-2">
-          <span className="label md:text-[0.7rem]">{selected.size} seçili</span>
-          <button
-            type="button"
-            onClick={bulkDelete}
-            disabled={selected.size === 0}
-            className="btn-lux disabled:opacity-40"
-          >
-            Seçilenleri Sil
-          </button>
+        <div className="flex items-center justify-between gap-2 mb-4 rounded-full border border-line bg-surface/70 backdrop-blur px-4 py-2">
+          <span className="label md:text-[0.7rem] shrink-0">{selected.size} seçili</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={bulkSetPublic}
+              disabled={selected.size === 0}
+              className="btn-lux disabled:opacity-40"
+            >
+              {visibilityLabel}
+            </button>
+            <button
+              type="button"
+              onClick={bulkDelete}
+              disabled={selected.size === 0}
+              className="font-sans uppercase text-[0.6rem] tracking-[0.18em] text-rose border border-rose/40 rounded-full px-3 py-2 disabled:opacity-40"
+            >
+              Sil
+            </button>
+          </div>
         </div>
       )}
 
