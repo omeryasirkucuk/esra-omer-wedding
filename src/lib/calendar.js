@@ -73,12 +73,19 @@ export function downloadICS(w) {
 
 export function googleCalendarUrl(w) {
   const e = eventFromWedding(w)
+  // Google's web template geocodes the `location` text — and the street address
+  // lands on the wrong block (same issue Apple had). Anchor the pin on the exact
+  // coordinates instead, and keep the readable venue + address in the notes.
+  const geo = w.venue?.geo
+  const location =
+    geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng) ? `${geo.lat},${geo.lng}` : e.location
+  const details = `${e.description}\n\n${e.location}`
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: e.title,
     dates: `${toICSDate(e.startISO)}/${toICSDate(e.endISO)}`,
-    details: e.description,
-    location: e.location,
+    details,
+    location,
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
