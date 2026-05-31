@@ -35,17 +35,35 @@ export async function publicIdSet() {
   return new Set((await readAll()).map((e) => e.id))
 }
 
+// Serialize every read-modify-write of the collection. Bulk "add to album" sends
+// one request per photo in parallel, and at the wedding many guests share at once;
+// without a lock those concurrent read→modify→write cycles clobber each other and
+// silently drop entries. A single promise chain runs them one at a time.
+let lock = Promise.resolve()
+function withLock(fn) {
+  const run = lock.then(fn, fn)
+  lock = run.then(
+    () => {},
+    () => {},
+  )
+  return run
+}
+
 // Add (or refresh) a public entry. Idempotent on `id`.
-export async function addPublic(entry) {
-  const items = await readAll()
-  const rest = items.filter((e) => e.id !== entry.id)
-  rest.push({ ...entry, sharedAt: new Date().toISOString() })
-  await storage.saveCollection(NAME, rest)
+export function addPublic(entry) {
+  return withLock(async () => {
+    const items = await readAll()
+    const rest = items.filter((e) => e.id !== entry.id)
+    rest.push({ ...entry, sharedAt: new Date().toISOString() })
+    await storage.saveCollection(NAME, rest)
+  })
 }
 
 // Remove a public entry by upload id. Safe to call when it isn't public.
-export async function removePublic(id) {
-  const items = await readAll()
-  const rest = items.filter((e) => e.id !== id)
-  if (rest.length !== items.length) await storage.saveCollection(NAME, rest)
+export function removePublic(id) {
+  return withLock(async () => {
+    const items = await readAll()
+    const rest = items.filter((e) => e.id !== id)
+    if (rest.length !== items.length) await storage.saveCollection(NAME, rest)
+  })
 }
