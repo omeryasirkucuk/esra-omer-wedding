@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 import MediaViewer from '../../pages/album/MediaViewer.jsx'
-import { thumbUrl } from '../../lib/mediaActions.js'
+import MediaThumb from '../../pages/album/MediaThumb.jsx'
 
 const selKey = (slug, id) => `${slug}::${id}`
 
@@ -310,7 +310,6 @@ export default function Albums({ onAuthError }) {
 }
 
 function Thumb({ item, onDelete, selecting, selected, onToggle, onOpen }) {
-  const isVideo = item.type === 'video'
   return (
     <button
       type="button"
@@ -319,18 +318,7 @@ function Thumb({ item, onDelete, selecting, selected, onToggle, onOpen }) {
         selected ? 'ring-2 ring-gold' : ''
       }`}
     >
-      {isVideo ? (
-        <span className="absolute inset-0 flex items-center justify-center bg-[#d9cdb4] text-white text-2xl pointer-events-none drop-shadow">
-          ▶
-        </span>
-      ) : (
-        <img
-          src={thumbUrl(item)}
-          alt={item.originalName || ''}
-          loading="lazy"
-          className="w-full h-full object-cover"
-        />
-      )}
+      <MediaThumb item={item} />
 
       {item.public && (
         <span

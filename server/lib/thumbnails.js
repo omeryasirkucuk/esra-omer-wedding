@@ -1,12 +1,19 @@
 // On-demand album thumbnails. The grids show a small WebP instead of the full
-// original (2–5 MB phone photos), cutting bytes and S3 egress ~50–100×. The
-// derivative is generated on first request and cached next to the original, so
-// every later request — including the public album's 5 s poll — is a cache hit.
+// original (2–5 MB photos, or a video), cutting bytes and S3 egress ~50–100×.
+// The derivative is generated on first request and cached next to the original,
+// so every later request — including the public album's poll — is a cache hit.
 //
-// Full resolution is untouched: the original is still served at /media and saved
-// via /api/uploads/file; only the grid <img> points here. Videos never hit this
-// endpoint (the client shows a placeholder tile), so no frame extraction needed.
+// Images are resized with sharp. Videos get a real poster frame: ffmpeg grabs
+// the first frame, sharp turns it into the same small WebP. Both cache under
+// "<file>.thumb.webp", so the client points one <img> at this endpoint either
+// way. Full resolution is untouched (served at /media, saved via /api/uploads/file).
+import { spawn } from 'node:child_process'
+import os from 'node:os'
+import fs from 'node:fs'
+import path from 'node:path'
+import { pipeline } from 'node:stream/promises'
 import sharp from 'sharp'
+import ffmpegPath from 'ffmpeg-static'
 import { storage } from '../storage/index.js'
 
 // Path-safe segment: slug is a folder name and file is "<id><ext>", so neither
@@ -14,9 +21,15 @@ import { storage } from '../storage/index.js'
 const SAFE = /^[A-Za-z0-9._-]+$/
 
 const THUMB_WIDTH = 500 // covers a ~150 px tile at up to 3× device pixel ratio
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm', '.3gp', '.avi', '.mkv'])
 
-// Minimal extension → mime map for the fallback (when sharp can't process a file
-// we stream the original, and a correct type lets <img> render it).
+function isVideoFile(file) {
+  const dot = file.lastIndexOf('.')
+  return dot >= 0 && VIDEO_EXTS.has(file.slice(dot).toLowerCase())
+}
+
+// Extension → mime for the image fallback (when sharp can't process a still and
+// we stream the original, a correct type lets <img> render it).
 const EXT_MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -31,8 +44,8 @@ function mimeFromExt(file) {
   return (dot >= 0 && EXT_MIME[file.slice(dot).toLowerCase()]) || 'application/octet-stream'
 }
 
-// Pipe an original through sharp and collect the resized WebP into a buffer.
-function toWebpThumb(srcStream) {
+// Pipe an image original through sharp into a small WebP buffer.
+function imageToWebp(srcStream) {
   return new Promise((resolve, reject) => {
     const chunks = []
     const transform = sharp()
@@ -47,17 +60,53 @@ function toWebpThumb(srcStream) {
   })
 }
 
-// Stream the original bytes as a fallback (sharp failed, e.g. an unsupported
-// codec) so the tile still shows something.
-async function streamOriginal(slug, file, res) {
-  const s = await storage.readStream(slug, file)
-  res.setHeader('Content-Type', mimeFromExt(file))
-  res.setHeader('Cache-Control', 'public, max-age=86400')
-  s.on('error', () => {
-    if (!res.headersSent) res.status(404).end()
-    else res.destroy()
-  })
-  s.pipe(res)
+// Cap concurrent video poster jobs: each downloads the original and runs ffmpeg,
+// which is heavier than an image resize. Photos are unaffected. Cached posters
+// skip this entirely, so it only gates the first view of each video.
+const MAX_VIDEO_JOBS = 2
+let videoJobs = 0
+const videoWaiters = []
+function acquireVideo() {
+  if (videoJobs < MAX_VIDEO_JOBS) {
+    videoJobs++
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => videoWaiters.push(resolve))
+}
+function releaseVideo() {
+  videoJobs--
+  const next = videoWaiters.shift()
+  if (next) {
+    videoJobs++
+    next()
+  }
+}
+
+// Grab the first frame of a video as a small WebP. ffmpeg needs a seekable file
+// (phone videos often store the moov atom at the end), so the original is staged
+// to a temp file first, then the frame is piped through sharp.
+async function videoPosterWebp(slug, file) {
+  const tmp = path.join(os.tmpdir(), `eo-poster-${process.pid}-${videoJobs}-${file}`)
+  await pipeline(await storage.readStream(slug, file), fs.createWriteStream(tmp))
+  try {
+    const frame = await new Promise((resolve, reject) => {
+      const ff = spawn(ffmpegPath, ['-ss', '0', '-i', tmp, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'])
+      const chunks = []
+      ff.stdout.on('data', (d) => chunks.push(d))
+      ff.stderr.on('data', () => {})
+      ff.on('error', reject)
+      ff.on('close', (code) => (code === 0 && chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error(`ffmpeg exit ${code}`))))
+    })
+    return await sharp(frame).rotate().resize({ width: THUMB_WIDTH, withoutEnlargement: true }).webp({ quality: 72 }).toBuffer()
+  } finally {
+    fs.unlink(tmp, () => {})
+  }
+}
+
+function serveWebp(res, buf) {
+  res.setHeader('Content-Type', 'image/webp')
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.end(buf)
 }
 
 // GET /api/uploads/thumb?slug=&file=
@@ -82,22 +131,47 @@ export async function thumbHandler(req, res, next) {
       return cached.pipe(res)
     }
 
-    // Cache miss: generate from the original, then cache + serve.
+    // Cache miss — generate, cache, serve.
+    if (isVideoFile(file)) {
+      await acquireVideo()
+      let buf
+      try {
+        buf = await videoPosterWebp(slug, file)
+      } catch {
+        // No frame (unsupported/corrupt): 404 so the client shows its placeholder
+        // — never stream the whole video into an <img>.
+        return res.status(404).end()
+      } finally {
+        releaseVideo()
+      }
+      try {
+        await storage.putBytes(slug, thumbName, buf, 'image/webp')
+      } catch {
+        /* caching best-effort */
+      }
+      return serveWebp(res, buf)
+    }
+
     let buf
     try {
-      buf = await toWebpThumb(await storage.readStream(slug, file))
+      buf = await imageToWebp(await storage.readStream(slug, file))
     } catch {
-      // sharp couldn't read it (unsupported/corrupt) — serve the original instead.
-      return streamOriginal(slug, file, res)
+      // sharp couldn't read it (unsupported/corrupt) — serve the original still.
+      const s = await storage.readStream(slug, file)
+      res.setHeader('Content-Type', mimeFromExt(file))
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      s.on('error', () => {
+        if (!res.headersSent) res.status(404).end()
+        else res.destroy()
+      })
+      return s.pipe(res)
     }
     try {
       await storage.putBytes(slug, thumbName, buf, 'image/webp')
     } catch {
-      /* caching is best-effort; still serve the bytes we have */
+      /* caching best-effort */
     }
-    res.setHeader('Content-Type', 'image/webp')
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    res.end(buf)
+    serveWebp(res, buf)
   } catch (err) {
     next(err)
   }

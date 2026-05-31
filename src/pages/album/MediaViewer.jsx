@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { confirmDialog } from '../../lib/confirm.js'
-import { saveMedia, basename, mediaDownloadUrl } from '../../lib/mediaActions.js'
+import { saveMedia, basename, mediaDownloadUrl, isVideoItem } from '../../lib/mediaActions.js'
 
 const SWIPE_THRESHOLD = 60
 
@@ -46,7 +46,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
   }, [go, onClose])
 
   if (!item) return null
-  const isVideo = item.type?.startsWith('video')
+  const isVideo = isVideoItem(item)
   const canPrev = index > 0
   const canNext = index < items.length - 1
 

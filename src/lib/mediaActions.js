@@ -12,6 +12,16 @@ function isTouchDevice() {
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+const VIDEO_URL_EXT = /\.(mp4|mov|m4v|webm|3gp|avi|mkv)$/i
+
+// Treat an item as a video by its stored type or, as a fallback, its file
+// extension — some browsers upload videos with a generic mime, which would
+// otherwise misclassify them as images.
+export function isVideoItem(item) {
+  const t = item?.type
+  return t === 'video' || (typeof t === 'string' && t.startsWith('video')) || VIDEO_URL_EXT.test(item?.url || '')
+}
+
 // Last path segment of a media URL, used as a filename fallback.
 export function basename(url) {
   return String(url || '').split('/').pop() || 'medya'

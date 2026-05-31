@@ -5,13 +5,12 @@
 import { useEffect, useState } from 'react'
 import Sprig from '../../components/Sprig.jsx'
 import { api } from '../../lib/api.js'
-import { thumbUrl } from '../../lib/mediaActions.js'
+import MediaThumb from './MediaThumb.jsx'
 import MediaViewer from './MediaViewer.jsx'
 
 const POLL_MS = 5000
 
 function Tile({ item, onOpen }) {
-  const isVideo = item.type?.startsWith('video')
   return (
     <figure className="m-0">
       <button
@@ -19,13 +18,7 @@ function Tile({ item, onOpen }) {
         onClick={() => onOpen(item)}
         className="relative block aspect-square w-full rounded overflow-hidden bg-[#efe6d4]"
       >
-        {isVideo ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-[#d9cdb4] text-white text-2xl pointer-events-none drop-shadow">
-            ▶
-          </span>
-        ) : (
-          <img src={thumbUrl(item)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-        )}
+        <MediaThumb item={item} />
       </button>
       {item.displayName && (
         <figcaption className="mt-1 text-center font-display italic text-muted text-[11px] md:text-xs truncate">

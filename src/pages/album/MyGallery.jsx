@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 import { confirmDialog } from '../../lib/confirm.js'
-import { thumbUrl } from '../../lib/mediaActions.js'
+import MediaThumb from './MediaThumb.jsx'
 import MediaViewer from './MediaViewer.jsx'
 
 // Small gold pill marking an item that is live in the public album.
@@ -26,8 +26,6 @@ function PublicBadge() {
 }
 
 function GalleryItem({ item, onDelete, selecting, selected, onToggle, onOpen }) {
-  const isVideo = item.type?.startsWith('video')
-
   return (
     <button
       type="button"
@@ -36,19 +34,7 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle, onOpen }) 
         selecting ? 'cursor-pointer' : 'cursor-default'
       } ${selected ? 'ring-2 ring-gold' : ''}`}
     >
-      {isVideo ? (
-        <span className="absolute inset-0 flex items-center justify-center bg-[#d9cdb4] text-white text-2xl pointer-events-none drop-shadow">
-          ▶
-        </span>
-      ) : (
-        <img
-          src={thumbUrl(item)}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover"
-        />
-      )}
+      <MediaThumb item={item} />
       {item.public && !selecting && <PublicBadge />}
 
       {selecting ? (
