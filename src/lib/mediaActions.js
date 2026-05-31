@@ -10,9 +10,28 @@ function isTouchDevice() {
   return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+
 // Last path segment of a media URL, used as a filename fallback.
 export function basename(url) {
   return String(url || '').split('/').pop() || 'medya'
+}
+
+// Same-origin streaming URL for saving an item. The display URL ("/media/...")
+// 302-redirects to a presigned S3 URL in production, which fetch() cannot read
+// into a blob without S3 CORS; "/api/uploads/file" streams the bytes through our
+// own server instead, so save/share works on every device and storage driver.
+export function mediaDownloadUrl(item) {
+  const parts = String(item?.url || '').split('/') // ["", "media", "<slug>", "<storedName>"]
+  const slug = parts[2] || ''
+  const file = parts[3] || ''
+  const q = new URLSearchParams({
+    slug,
+    file,
+    name: item?.originalName || file,
+    type: item?.mime || '',
+  })
+  return `${API_BASE}/api/uploads/file?${q.toString()}`
 }
 
 // Returns true when the file was handed off (shared or downloaded), false if the

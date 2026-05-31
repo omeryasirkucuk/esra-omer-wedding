@@ -12,6 +12,28 @@ import { storage } from '../storage/index.js'
 // neither should ever contain a slash or "..". Reject anything that does.
 const SAFE = /^[A-Za-z0-9._-]+$/
 
+// Infer a Content-Type from the file extension. Needed so the share sheet / the
+// downloaded blob carries the right type (iOS only offers "Save to Photos" when
+// the file is a recognized image/video). Used when the caller omits `type`.
+const EXT_MIME = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.m4v': 'video/x-m4v',
+  '.webm': 'video/webm',
+  '.3gp': 'video/3gpp',
+}
+function mimeFromExt(file) {
+  const dot = file.lastIndexOf('.')
+  return (dot >= 0 && EXT_MIME[file.slice(dot).toLowerCase()]) || ''
+}
+
 // Build an RFC 5987 Content-Disposition that survives Turkish characters: an
 // ASCII-only fallback plus a UTF-8 encoded copy.
 function contentDisposition(name) {
@@ -55,7 +77,7 @@ export async function downloadFileHandler(req, res, next) {
     const slug = String(req.query.slug || '')
     const file = String(req.query.file || '') // storedName, e.g. "<id>.jpg"
     const name = String(req.query.name || file) // original name for the download
-    const type = String(req.query.type || '') // mime, used for the response type
+    const type = String(req.query.type || '') || mimeFromExt(file) // response mime
 
     if (!SAFE.test(slug) || !SAFE.test(file)) {
       return res.status(400).json({ error: 'bad path' })

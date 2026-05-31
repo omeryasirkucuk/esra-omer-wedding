@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
+import { downloadFileHandler } from './uploadsDownload.js'
 
 // Album uploads. The front-end uploads one file per request (so each gets its
 // own progress bar) and runs a few in parallel. Files first land in a temp dir,
@@ -54,6 +55,13 @@ uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
     next(err)
   }
 })
+
+// GET /api/uploads/file?slug=&file=&name=&type=  → stream one stored file from
+// our own origin. All album media is public, so no auth. The viewer fetches this
+// (not /media) to save/share: /media 302-redirects to a presigned S3 URL, which
+// fetch() cannot read into a blob without S3 CORS — streaming server-side avoids
+// that entirely and works for both the local and S3 drivers.
+uploadsRouter.get('/file', downloadFileHandler)
 
 // GET /api/uploads/public  → the shared "Düğün Albümü", newest first. No auth;
 // only items guests/admin chose to make public are ever listed here.

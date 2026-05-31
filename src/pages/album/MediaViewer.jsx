@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { confirmDialog } from '../../lib/confirm.js'
-import { saveMedia, basename } from '../../lib/mediaActions.js'
+import { saveMedia, basename, mediaDownloadUrl } from '../../lib/mediaActions.js'
 
 const SWIPE_THRESHOLD = 60
 
@@ -54,7 +54,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
     if (busy) return
     setBusy(true)
     try {
-      await saveMedia({ url: src(item), filename: item.originalName || basename(src(item)), mime: item.mime })
+      await saveMedia({ url: mediaDownloadUrl(item), filename: item.originalName || basename(item.url), mime: item.mime })
     } finally {
       setBusy(false)
     }
