@@ -159,6 +159,11 @@ function AlbumView() {
 
       <div className="w-full max-w-md md:max-w-2xl mx-auto">
         <Dropzone onFiles={enqueue} />
+        <p className="mt-3 text-center font-display italic text-muted text-[12px] md:text-sm leading-relaxed">
+          Yüklediklerini yalnızca sen ve düğün sahipleri görür.
+          <br />
+          “Albüme Ekle” dediklerini ise tüm davetliler görür.
+        </p>
         <UploadQueue items={queue} />
         <MyGallery
           items={gallery}
