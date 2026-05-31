@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { timeAgo, avatarColor, initial } from './format.js'
+import { thumbUrl, streamUrl } from '../../lib/mediaActions.js'
 
 const TrashIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -58,13 +59,16 @@ export default function PostCard({ post, liked, canDelete, onLike, onDelete, now
         <div className="mt-2 overflow-hidden rounded-xl border border-[#e8dcbf]">
           {media.type === 'video' ? (
             <video
-              src={media.url}
+              src={streamUrl(media)}
+              poster={thumbUrl(media)}
               controls
+              playsInline
+              preload="metadata"
               className="w-full md:max-h-[420px] md:object-contain md:bg-[#f4ecdd]"
             />
           ) : (
             <img
-              src={media.url}
+              src={thumbUrl(media)}
               alt=""
               loading="lazy"
               className="w-full md:max-h-[420px] md:object-contain md:bg-[#f4ecdd]"

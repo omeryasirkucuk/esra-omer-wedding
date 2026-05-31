@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { confirmDialog } from '../../lib/confirm.js'
-import { saveMedia, basename, mediaDownloadUrl, isVideoItem } from '../../lib/mediaActions.js'
+import { saveMedia, basename, mediaDownloadUrl, streamUrl, thumbUrl, isVideoItem } from '../../lib/mediaActions.js'
 
 const SWIPE_THRESHOLD = 60
 
@@ -121,7 +121,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
             onClick={(e) => e.stopPropagation()}
           >
             {isVideo ? (
-              <video src={src(item)} controls autoPlay playsInline className="max-h-[74vh] max-w-full rounded" />
+              <video src={streamUrl(item)} poster={thumbUrl(item)} controls autoPlay playsInline className="max-h-[74vh] max-w-full rounded" />
             ) : (
               <img src={src(item)} alt="" draggable={false} className="max-h-[74vh] max-w-full object-contain rounded select-none" />
             )}

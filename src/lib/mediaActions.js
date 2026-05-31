@@ -27,6 +27,15 @@ export function basename(url) {
   return String(url || '').split('/').pop() || 'medya'
 }
 
+// Same-origin, range-capable URL for inline video playback (avoids the S3
+// presigned-redirect churn that makes <video> flaky on iOS).
+export function streamUrl(item) {
+  const parts = String(item?.url || '').split('/')
+  const slug = parts[2] || ''
+  const file = parts[3] || ''
+  return `${API_BASE}/api/uploads/stream?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
+}
+
 // Small cached-thumbnail URL for grid display. Parses the "/media/<slug>/<file>"
 // path the same way as the save URL. Only used for images; video tiles show a
 // placeholder instead of hitting this.

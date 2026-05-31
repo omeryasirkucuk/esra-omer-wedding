@@ -67,6 +67,39 @@ uploadsRouter.get('/file', downloadFileHandler)
 // GET /api/uploads/thumb?slug=&file=  → small cached WebP for the grids.
 uploadsRouter.get('/thumb', thumbHandler)
 
+// GET /api/uploads/stream?slug=&file=  → inline, range-capable, same-origin media
+// playback. /media 302-redirects to a presigned S3 URL, and the per-range redirect
+// churn makes <video> unreliable on iOS; streaming through our own origin fixes it.
+const STREAM_SAFE = /^[A-Za-z0-9._-]+$/
+const STREAM_MIME = {
+  '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.m4v': 'video/x-m4v',
+  '.webm': 'video/webm',
+  '.3gp': 'video/3gpp',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+}
+function streamMime(file) {
+  const dot = file.lastIndexOf('.')
+  return (dot >= 0 && STREAM_MIME[file.slice(dot).toLowerCase()]) || 'application/octet-stream'
+}
+uploadsRouter.get('/stream', (req, res) => {
+  const slug = String(req.query.slug || '')
+  const file = String(req.query.file || '')
+  if (!STREAM_SAFE.test(slug) || !STREAM_SAFE.test(file)) return res.status(400).end()
+  // S3: range-capable proxy stream. Local: mediaHandler sendFile already supports
+  // Range and is same-origin, so reuse it by addressing the file path.
+  if (storage.streamMedia) {
+    return storage.streamMedia(`uploads/${slug}/${file}`, req, res, streamMime(file))
+  }
+  req.params[0] = `${slug}/${file}`
+  return storage.mediaHandler(req, res)
+})
+
 // GET /api/uploads/public  → the shared "Düğün Albümü", newest first. No auth;
 // only items guests/admin chose to make public are ever listed here.
 uploadsRouter.get('/public', async (_req, res, next) => {
