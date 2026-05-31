@@ -61,20 +61,26 @@ export const s3StorageDriver = {
     return `${slugify(displayName)}-${uploaderId}`
   },
 
-  // List folder prefixes under uploads/ and match the one ending "-<id>".
-  async findSlug(uploaderId) {
+  // All folder prefixes under uploads/ ending "-<id>". A guest can have more than
+  // one if they renamed their profile between uploads (the slug embeds the name),
+  // so every read must consider all of them.
+  async findSlugs(uploaderId) {
+    const out = []
     const res = await client.send(
       new ListObjectsV2Command({ Bucket: BUCKET, Prefix: 'uploads/', Delimiter: '/' }),
     )
     for (const p of res.CommonPrefixes || []) {
       const slug = p.Prefix.replace(/^uploads\//, '').replace(/\/$/, '')
-      if (slug.endsWith(`-${uploaderId}`)) return slug
+      if (slug.endsWith(`-${uploaderId}`)) out.push(slug)
     }
-    return null
+    return out
   },
 
   async putUpload({ displayName, uploaderId, firstName, lastName, tempPath, fileId, ext, originalName, mime, size }) {
-    const slug = this.uploaderSlug(displayName, uploaderId)
+    // Reuse this device's existing folder if it has one (so a later rename
+    // doesn't scatter the guest's media across folders); otherwise create one.
+    const existing = await this.findSlugs(uploaderId)
+    const slug = existing[0] || this.uploaderSlug(displayName, uploaderId)
     const storedName = `${fileId}${ext}`
     const key = `uploads/${slug}/${storedName}`
 
@@ -103,26 +109,31 @@ export const s3StorageDriver = {
   },
 
   async getUploads(uploaderId) {
-    const slug = await this.findSlug(uploaderId)
-    if (!slug) return []
-    const manifest = await readJsonKey(`uploads/${slug}/manifest.json`, null)
-    if (!manifest) return []
-    return manifest.items
+    const items = []
+    for (const slug of await this.findSlugs(uploaderId)) {
+      const manifest = await readJsonKey(`uploads/${slug}/manifest.json`, null)
+      if (manifest) items.push(...manifest.items)
+    }
+    return items
       .filter((i) => !i.deleted)
       .sort((a, b) => Date.parse(b.uploadedAt) - Date.parse(a.uploadedAt))
   },
 
-  async softDeleteUpload({ uploaderId, displayName, id }) {
-    const slug = this.uploaderSlug(displayName, uploaderId)
-    const manifestKey = `uploads/${slug}/manifest.json`
-    const manifest = await readJsonKey(manifestKey, null)
-    if (!manifest) return false
-    const item = manifest.items.find((i) => i.id === id)
-    if (!item) return false
-    item.deleted = true
-    item.deletedAt = new Date().toISOString()
-    await writeJsonKey(manifestKey, manifest)
-    return true
+  // Soft-delete by id across all of this device's folders (the item may live in
+  // an older, differently-named folder than the current display name implies).
+  async softDeleteUpload({ uploaderId, id }) {
+    for (const slug of await this.findSlugs(uploaderId)) {
+      const manifestKey = `uploads/${slug}/manifest.json`
+      const manifest = await readJsonKey(manifestKey, null)
+      const item = manifest?.items.find((i) => i.id === id)
+      if (item) {
+        item.deleted = true
+        item.deletedAt = new Date().toISOString()
+        await writeJsonKey(manifestKey, manifest)
+        return true
+      }
+    }
+    return false
   },
 
   // Key/value JSON document (object), e.g. editable game content.
