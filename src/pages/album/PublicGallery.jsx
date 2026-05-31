@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import Sprig from '../../components/Sprig.jsx'
 import { api } from '../../lib/api.js'
-import Lightbox from './Lightbox.jsx'
+import MediaViewer from './MediaViewer.jsx'
 
 const POLL_MS = 5000
 
@@ -36,7 +36,7 @@ function Tile({ item, onOpen }) {
 
 export default function PublicGallery() {
   const [items, setItems] = useState([])
-  const [active, setActive] = useState(null)
+  const [viewer, setViewer] = useState(null) // index of the open item, or null
 
   useEffect(() => {
     let alive = true
@@ -73,14 +73,16 @@ export default function PublicGallery() {
       ) : (
         <div className="scroll-gold overflow-y-auto max-h-[68vh] pr-1">
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-3">
-            {items.map((item) => (
-              <Tile key={item.id} item={item} onOpen={setActive} />
+            {items.map((item, i) => (
+              <Tile key={item.id} item={item} onOpen={() => setViewer(i)} />
             ))}
           </div>
         </div>
       )}
 
-      {active && <Lightbox item={active} onClose={() => setActive(null)} />}
+      {viewer != null && items[viewer] && (
+        <MediaViewer items={items} index={viewer} onIndexChange={setViewer} onClose={() => setViewer(null)} />
+      )}
     </div>
   )
 }

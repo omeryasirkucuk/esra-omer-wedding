@@ -4,7 +4,6 @@ import Sprig from '../components/Sprig.jsx'
 import IdentityPrompt from '../components/IdentityPrompt.jsx'
 import { api } from '../lib/api.js'
 import { getProfile, hasProfile } from '../lib/identity.js'
-import { confirmDialog } from '../lib/confirm.js'
 import UploadQueue from './album/UploadQueue.jsx'
 import MyGallery from './album/MyGallery.jsx'
 import PublicGallery from './album/PublicGallery.jsx'
@@ -115,8 +114,9 @@ function AlbumView() {
     [refreshGallery, setItem],
   )
 
+  // Raw delete (no confirm here): the thumbnail's inline trash and the
+  // full-screen viewer each run their own confirm before calling this.
   const handleDelete = useCallback(async (item) => {
-    if (!(await confirmDialog('Bu yüklemeyi silmek istiyor musun?'))) return
     setGallery((prev) => prev.filter((g) => g.id !== item.id))
     try {
       await api.deleteUpload(item.id)
@@ -170,6 +170,7 @@ function AlbumView() {
           onDelete={handleDelete}
           onBulkDelete={handleBulkDelete}
           onBulkSetPublic={handleBulkSetPublic}
+          onSetPublic={(id, isPublic) => handleBulkSetPublic([id], isPublic)}
         />
       </div>
     </>

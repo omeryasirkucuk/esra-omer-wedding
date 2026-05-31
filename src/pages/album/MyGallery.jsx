@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { confirmDialog } from '../../lib/confirm.js'
+import MediaViewer from './MediaViewer.jsx'
 
 // Small gold pill marking an item that is live in the public album.
 function PublicBadge() {
@@ -23,13 +24,13 @@ function PublicBadge() {
   )
 }
 
-function GalleryItem({ item, onDelete, selecting, selected, onToggle }) {
+function GalleryItem({ item, onDelete, selecting, selected, onToggle, onOpen }) {
   const isVideo = item.type?.startsWith('video')
 
   return (
     <button
       type="button"
-      onClick={() => selecting && onToggle(item.id)}
+      onClick={() => (selecting ? onToggle(item.id) : onOpen())}
       className={`relative block aspect-square rounded overflow-hidden bg-[#efe6d4] group w-full ${
         selecting ? 'cursor-pointer' : 'cursor-default'
       } ${selected ? 'ring-2 ring-gold' : ''}`}
@@ -85,13 +86,21 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle }) {
   )
 }
 
-export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPublic }) {
+export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPublic, onSetPublic }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
+  const [viewer, setViewer] = useState(null) // index of the open item, or null
 
   const exitSelection = () => {
     setSelecting(false)
     setSelected(new Set())
+  }
+
+  // The inline trash on a thumbnail confirms here; the full-screen viewer runs
+  // its own confirm, so `onDelete` itself stays raw (no dialog).
+  const deleteInline = async (item) => {
+    if (!(await confirmDialog('Bu yüklemeyi silmek istiyor musun?'))) return
+    onDelete(item)
   }
 
   const toggle = (id) => {
@@ -174,18 +183,30 @@ export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPubl
       ) : (
         <div className="scroll-gold overflow-y-auto max-h-[60vh] pr-1">
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-3">
-            {items.map((item) => (
+            {items.map((item, i) => (
               <GalleryItem
                 key={item.id}
                 item={item}
-                onDelete={onDelete}
+                onDelete={deleteInline}
                 selecting={selecting}
                 selected={selected.has(item.id)}
                 onToggle={toggle}
+                onOpen={() => setViewer(i)}
               />
             ))}
           </div>
         </div>
+      )}
+
+      {viewer != null && items[viewer] && (
+        <MediaViewer
+          items={items}
+          index={viewer}
+          onIndexChange={setViewer}
+          onClose={() => setViewer(null)}
+          onDelete={onDelete}
+          onTogglePublic={(it) => onSetPublic(it.id, !it.public)}
+        />
       )}
     </section>
   )

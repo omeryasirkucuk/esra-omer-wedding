@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
+import MediaViewer from '../../pages/album/MediaViewer.jsx'
 
 const selKey = (slug, id) => `${slug}::${id}`
 
@@ -16,6 +17,7 @@ export default function Albums({ onAuthError }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
   const [downloading, setDownloading] = useState(false)
+  const [viewer, setViewer] = useState(null) // { slug, index } of the open item
 
   useEffect(() => {
     let alive = true
@@ -148,6 +150,18 @@ export default function Albums({ onAuthError }) {
     .filter((p) => p.item)
   const allSelectedPublic = selectedItems.length > 0 && selectedItems.every((p) => p.item.public)
 
+  // Single-item promote/demote, used by the full-screen viewer.
+  async function handleToggleOnePublic(slug, item) {
+    const next = !item.public
+    try {
+      await setUploadPublic(slug, item.id, next)
+      setPublicInState(slug, item.id, next)
+    } catch (e) {
+      if (e.name === 'AuthError') onAuthError()
+      else await alertDialog('İşlem başarısız, tekrar deneyin.')
+    }
+  }
+
   async function handleBulkSetPublic() {
     if (selectedItems.length === 0) return
     const makePublic = !allSelectedPublic
@@ -256,7 +270,7 @@ export default function Albums({ onAuthError }) {
               <p className="label-gold mb-3">{items.length} medya</p>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                {items.map((it) => (
+                {items.map((it, i) => (
                   <Thumb
                     key={it.id}
                     item={it}
@@ -264,6 +278,7 @@ export default function Albums({ onAuthError }) {
                     selected={selected.has(selKey(u.slug, it.id))}
                     onToggle={() => toggleSelected(u.slug, it.id)}
                     onDelete={() => handleDelete(u.slug, it.id)}
+                    onOpen={() => setViewer({ slug: u.slug, index: i })}
                   />
                 ))}
               </div>
@@ -271,20 +286,38 @@ export default function Albums({ onAuthError }) {
           )
         })}
       </div>
+
+      {viewer &&
+        (() => {
+          const u = uploaders.find((x) => x.slug === viewer.slug)
+          const vItems = u ? liveItems(u) : []
+          if (!vItems[viewer.index]) return null
+          return (
+            <MediaViewer
+              items={vItems}
+              index={viewer.index}
+              onIndexChange={(i) => setViewer({ slug: viewer.slug, index: i })}
+              onClose={() => setViewer(null)}
+              srcFor={(it) => mediaUrl(it.url)}
+              onDelete={(it) => handleDelete(viewer.slug, it.id)}
+              onTogglePublic={(it) => handleToggleOnePublic(viewer.slug, it)}
+            />
+          )
+        })()}
     </div>
   )
 }
 
-function Thumb({ item, onDelete, selecting, selected, onToggle }) {
+function Thumb({ item, onDelete, selecting, selected, onToggle, onOpen }) {
   const isVideo = item.type === 'video'
   const src = mediaUrl(item.url)
   return (
     <button
       type="button"
-      onClick={() => selecting && onToggle()}
-      className={`relative group card-soft overflow-hidden aspect-square block w-full ${
-        selecting ? 'cursor-pointer' : 'cursor-default'
-      } ${selected ? 'ring-2 ring-gold' : ''}`}
+      onClick={() => (selecting ? onToggle() : onOpen())}
+      className={`relative group card-soft overflow-hidden aspect-square block w-full cursor-pointer ${
+        selected ? 'ring-2 ring-gold' : ''
+      }`}
     >
       {isVideo ? (
         <>
