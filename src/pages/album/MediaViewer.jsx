@@ -70,7 +70,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/92 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col backdrop-blur-sm"
+      style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}
       onClick={onClose}
     >
       <button
@@ -94,7 +95,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
               e.stopPropagation()
               go(-1)
             }}
-            className="hidden sm:flex absolute left-3 z-10 w-11 h-11 rounded-full bg-white/15 text-white items-center justify-center"
+            className="flex absolute left-3 z-10 w-11 h-11 rounded-full bg-white/20 text-white items-center justify-center"
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 6l-6 6 6 6" />
@@ -135,7 +136,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
               e.stopPropagation()
               go(1)
             }}
-            className="hidden sm:flex absolute right-3 z-10 w-11 h-11 rounded-full bg-white/15 text-white items-center justify-center"
+            className="flex absolute right-3 z-10 w-11 h-11 rounded-full bg-white/20 text-white items-center justify-center"
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 6l6 6-6 6" />
@@ -147,7 +148,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
       {/* Action bar */}
       <div className="shrink-0 px-5 pb-7 pt-3 flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
         {item.displayName && (
-          <p className="font-display italic text-white/90 text-base md:text-lg">{item.displayName}</p>
+          <p className="text-center leading-tight">
+            <span className="block font-sans uppercase text-[0.55rem] tracking-[0.2em] text-white/55">Paylaşan</span>
+            <span className="font-display italic text-white text-lg md:text-xl">{item.displayName}</span>
+          </p>
         )}
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
@@ -177,9 +181,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, srcF
             </button>
           )}
         </div>
-        <p className="font-sans text-white/40 text-[0.6rem] tracking-[0.18em]">
-          {index + 1} / {items.length}
-        </p>
+        {items.length > 1 && (
+          <p className="font-sans text-white/60 text-[0.6rem] tracking-[0.18em]">
+            {index + 1} / {items.length}
+          </p>
+        )}
       </div>
     </div>
   )
