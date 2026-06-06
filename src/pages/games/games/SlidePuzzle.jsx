@@ -7,6 +7,7 @@ import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
 import EndScoreboard from '../EndScoreboard.jsx'
 import { api } from '../../../lib/api.js'
+import { displayUrl } from '../../../lib/mediaActions.js'
 
 function formatTime(totalSeconds) {
   const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0')
@@ -77,7 +78,7 @@ export default function SlidePuzzle() {
     api
       .getGamesContent()
       .then((d) => {
-        if (alive && d?.puzzle?.imageUrl) setImageUrl(d.puzzle.imageUrl)
+        if (alive && d?.puzzle?.imageUrl) setImageUrl(displayUrl(d.puzzle.imageUrl))
       })
       .catch(() => {
         // Keep the gradient placeholder on failure.

@@ -7,6 +7,7 @@ import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
 import EndScoreboard from '../EndScoreboard.jsx'
+import { displayUrl } from '../../../lib/mediaActions.js'
 
 // A soft gradient used as a placeholder tile when a round has no image.
 const FALLBACK_GRADIENT = 'linear-gradient(135deg,#eef0e6,#e6e4d4 60%,#e9ddc6)'
@@ -156,7 +157,7 @@ export default function PhotoGuess() {
       </p>
       {current.imageUrl ? (
         <img
-          src={current.imageUrl}
+          src={displayUrl(current.imageUrl)}
           alt=""
           className="w-full max-w-xs md:max-w-sm aspect-[4/3] md:max-h-72 object-cover rounded-2xl border border-[#e2d6b8] mt-3 md:mt-4"
         />

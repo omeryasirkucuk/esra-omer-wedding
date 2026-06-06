@@ -7,7 +7,7 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { downloadFileHandler } from './uploadsDownload.js'
-import { thumbHandler } from '../lib/thumbnails.js'
+import { thumbHandler, displayHandler } from '../lib/thumbnails.js'
 
 // Album uploads. The front-end uploads one file per request (so each gets its
 // own progress bar) and runs a few in parallel. Files first land in a temp dir,
@@ -66,6 +66,10 @@ uploadsRouter.get('/file', downloadFileHandler)
 
 // GET /api/uploads/thumb?slug=&file=  → small cached WebP for the grids.
 uploadsRouter.get('/thumb', thumbHandler)
+
+// GET /api/uploads/display?slug=&file=  → resolution-capped cached WebP for the
+// games, so a game photo loads at the same bounded quality for every guest.
+uploadsRouter.get('/display', displayHandler)
 
 // GET /api/uploads/stream?slug=&file=  → inline, range-capable, same-origin media
 // playback. /media 302-redirects to a presigned S3 URL, and the per-range redirect

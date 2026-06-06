@@ -7,6 +7,7 @@ import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
 import EndScoreboard from '../EndScoreboard.jsx'
 import { api } from '../../../lib/api.js'
+import { displayUrl } from '../../../lib/mediaActions.js'
 
 const PAIR_COUNT = 8 // 4x4 board = 8 pairs
 
@@ -201,7 +202,7 @@ function MemoryCard({ face, shown, onFlip }) {
           }}
         >
           {isImage ? (
-            <img src={face.value} alt="" className="w-full h-full object-cover" />
+            <img src={displayUrl(face.value)} alt="" className="w-full h-full object-cover" />
           ) : (
             face.value
           )}

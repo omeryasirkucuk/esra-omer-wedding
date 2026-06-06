@@ -20,7 +20,14 @@ import { storage } from '../storage/index.js'
 // should contain a slash or "..". Reject anything else.
 const SAFE = /^[A-Za-z0-9._-]+$/
 
-const THUMB_WIDTH = 500 // covers a ~150 px tile at up to 3× device pixel ratio
+// Two derivative sizes, both cached next to the original:
+//  • thumb   — tiny WebP for album/grid tiles
+//  • display — resolution-capped WebP for the games, so a game photo loads at the
+//    same bounded quality for every guest regardless of what the admin uploaded
+//    (a 6 MB phone photo and a small one both normalize to this). Not tiny: it
+//    still looks crisp on a full-width memory card / puzzle / photo-guess image.
+const THUMB = { suffix: 'thumb', width: 500, quality: 72 } // ~150 px tile at up to 3× DPR
+const DISPLAY = { suffix: 'display', width: 1280, quality: 82 }
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm', '.3gp', '.avi', '.mkv'])
 
 function isVideoFile(file) {
@@ -44,14 +51,16 @@ function mimeFromExt(file) {
   return (dot >= 0 && EXT_MIME[file.slice(dot).toLowerCase()]) || 'application/octet-stream'
 }
 
-// Pipe an image original through sharp into a small WebP buffer.
-function imageToWebp(srcStream) {
+// Pipe an image original through sharp into a capped WebP buffer. Bounds the
+// longest side (fit: 'inside') so both landscape and portrait stay within the
+// size, and never upscales a smaller original.
+function imageToWebp(srcStream, { width, quality }) {
   return new Promise((resolve, reject) => {
     const chunks = []
     const transform = sharp()
       .rotate() // honor EXIF orientation so portrait photos aren't sideways
-      .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
-      .webp({ quality: 72 })
+      .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality })
     transform.on('data', (c) => chunks.push(c))
     transform.on('end', () => resolve(Buffer.concat(chunks)))
     transform.on('error', reject)
@@ -85,7 +94,7 @@ function releaseVideo() {
 // Grab the first frame of a video as a small WebP. ffmpeg needs a seekable file
 // (phone videos often store the moov atom at the end), so the original is staged
 // to a temp file first, then the frame is piped through sharp.
-async function videoPosterWebp(slug, file) {
+async function videoPosterWebp(slug, file, { width, quality }) {
   const tmp = path.join(os.tmpdir(), `eo-poster-${process.pid}-${videoJobs}-${file}`)
   await pipeline(await storage.readStream(slug, file), fs.createWriteStream(tmp))
   try {
@@ -97,7 +106,7 @@ async function videoPosterWebp(slug, file) {
       ff.on('error', reject)
       ff.on('close', (code) => (code === 0 && chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error(`ffmpeg exit ${code}`))))
     })
-    return await sharp(frame).rotate().resize({ width: THUMB_WIDTH, withoutEnlargement: true }).webp({ quality: 72 }).toBuffer()
+    return await sharp(frame).rotate().resize({ width, height: width, fit: 'inside', withoutEnlargement: true }).webp({ quality }).toBuffer()
   } finally {
     fs.unlink(tmp, () => {})
   }
@@ -109,70 +118,79 @@ function serveWebp(res, buf) {
   res.end(buf)
 }
 
-// GET /api/uploads/thumb?slug=&file=
-export async function thumbHandler(req, res, next) {
-  try {
-    const slug = String(req.query.slug || '')
-    const file = String(req.query.file || '')
-    if (!SAFE.test(slug) || !SAFE.test(file)) {
-      return res.status(400).json({ error: 'bad path' })
-    }
-    const thumbName = `${file}.thumb.webp`
+// Build a request handler for one derivative size. Both /thumb and /display
+// share the same cache-then-generate flow; they differ only in the cap, the
+// quality, and the cache filename suffix.
+function makeHandler({ suffix, width, quality }) {
+  return async function handler(req, res, next) {
+    try {
+      const slug = String(req.query.slug || '')
+      const file = String(req.query.file || '')
+      if (!SAFE.test(slug) || !SAFE.test(file)) {
+        return res.status(400).json({ error: 'bad path' })
+      }
+      const cacheName = `${file}.${suffix}.webp`
 
-    // Cache hit: stream the stored derivative.
-    if (await storage.hasFile(slug, thumbName)) {
-      res.setHeader('Content-Type', 'image/webp')
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-      const cached = await storage.readStream(slug, thumbName)
-      cached.on('error', () => {
-        if (!res.headersSent) res.status(404).end()
-        else res.destroy()
-      })
-      return cached.pipe(res)
-    }
+      // Cache hit: stream the stored derivative.
+      if (await storage.hasFile(slug, cacheName)) {
+        res.setHeader('Content-Type', 'image/webp')
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        const cached = await storage.readStream(slug, cacheName)
+        cached.on('error', () => {
+          if (!res.headersSent) res.status(404).end()
+          else res.destroy()
+        })
+        return cached.pipe(res)
+      }
 
-    // Cache miss — generate, cache, serve.
-    if (isVideoFile(file)) {
-      await acquireVideo()
+      // Cache miss — generate, cache, serve.
+      if (isVideoFile(file)) {
+        await acquireVideo()
+        let buf
+        try {
+          buf = await videoPosterWebp(slug, file, { width, quality })
+        } catch {
+          // No frame (unsupported/corrupt): 404 so the client shows its placeholder
+          // — never stream the whole video into an <img>.
+          return res.status(404).end()
+        } finally {
+          releaseVideo()
+        }
+        try {
+          await storage.putBytes(slug, cacheName, buf, 'image/webp')
+        } catch {
+          /* caching best-effort */
+        }
+        return serveWebp(res, buf)
+      }
+
       let buf
       try {
-        buf = await videoPosterWebp(slug, file)
+        buf = await imageToWebp(await storage.readStream(slug, file), { width, quality })
       } catch {
-        // No frame (unsupported/corrupt): 404 so the client shows its placeholder
-        // — never stream the whole video into an <img>.
-        return res.status(404).end()
-      } finally {
-        releaseVideo()
+        // sharp couldn't read it (unsupported/corrupt) — serve the original still.
+        const s = await storage.readStream(slug, file)
+        res.setHeader('Content-Type', mimeFromExt(file))
+        res.setHeader('Cache-Control', 'public, max-age=86400')
+        s.on('error', () => {
+          if (!res.headersSent) res.status(404).end()
+          else res.destroy()
+        })
+        return s.pipe(res)
       }
       try {
-        await storage.putBytes(slug, thumbName, buf, 'image/webp')
+        await storage.putBytes(slug, cacheName, buf, 'image/webp')
       } catch {
         /* caching best-effort */
       }
-      return serveWebp(res, buf)
+      serveWebp(res, buf)
+    } catch (err) {
+      next(err)
     }
-
-    let buf
-    try {
-      buf = await imageToWebp(await storage.readStream(slug, file))
-    } catch {
-      // sharp couldn't read it (unsupported/corrupt) — serve the original still.
-      const s = await storage.readStream(slug, file)
-      res.setHeader('Content-Type', mimeFromExt(file))
-      res.setHeader('Cache-Control', 'public, max-age=86400')
-      s.on('error', () => {
-        if (!res.headersSent) res.status(404).end()
-        else res.destroy()
-      })
-      return s.pipe(res)
-    }
-    try {
-      await storage.putBytes(slug, thumbName, buf, 'image/webp')
-    } catch {
-      /* caching best-effort */
-    }
-    serveWebp(res, buf)
-  } catch (err) {
-    next(err)
   }
 }
+
+// GET /api/uploads/thumb?slug=&file=    — tiny grid tile
+export const thumbHandler = makeHandler(THUMB)
+// GET /api/uploads/display?slug=&file=  — resolution-capped game image
+export const displayHandler = makeHandler(DISPLAY)

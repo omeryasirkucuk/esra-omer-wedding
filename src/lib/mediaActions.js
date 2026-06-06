@@ -46,6 +46,18 @@ export function thumbUrl(item) {
   return `${API_BASE}/api/uploads/thumb?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
 }
 
+// Resolution-capped, same-origin URL for displaying a game photo. Parses the
+// "/media/<slug>/<file>" path like thumbUrl, but points at the larger /display
+// derivative so every guest sees the same bounded quality regardless of the
+// original the admin uploaded. Falls back to the raw url if it isn't a /media path.
+export function displayUrl(url) {
+  const parts = String(url || '').split('/')
+  if (parts[1] !== 'media' || !parts[2] || !parts[3]) return url || ''
+  const slug = parts[2]
+  const file = parts[3]
+  return `${API_BASE}/api/uploads/display?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
+}
+
 // Same-origin streaming URL for saving an item. The display URL ("/media/...")
 // 302-redirects to a presigned S3 URL in production, which fetch() cannot read
 // into a blob without S3 CORS; "/api/uploads/file" streams the bytes through our
