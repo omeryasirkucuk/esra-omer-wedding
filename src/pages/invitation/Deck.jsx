@@ -55,8 +55,12 @@ function mapsDirectionsUrl(wedding) {
   return `https://www.google.com/maps/dir/?api=1&destination=${venueAnchor(wedding)}`
 }
 
-function mapsViewUrl(wedding) {
-  return `https://www.google.com/maps/search/?api=1&query=${venueAnchor(wedding)}`
+// The owner pinned the exact venue listing on Google Maps; link straight to it
+// so "View on map" opens the real place card rather than a coordinate search.
+const MAPS_VIEW_URL = 'https://maps.app.goo.gl/zCxZpjrcZyhRsxuK8'
+
+function mapsViewUrl() {
+  return MAPS_VIEW_URL
 }
 
 export default function Deck() {
@@ -135,7 +139,7 @@ export default function Deck() {
         <h2 className="font-display text-primary text-xl md:text-2xl mt-4 tracking-wide">{wedding.venue.name}</h2>
         <p className="font-display text-muted text-sm md:text-base leading-relaxed mt-2 max-w-xs md:max-w-sm">{wedding.venue.address}</p>
         <div className="mt-5 flex flex-col items-stretch gap-3 w-full max-w-[16rem]">
-          <a href={mapsViewUrl(wedding)} target="_blank" rel="noreferrer" className="btn-lux w-full text-center">
+          <a href={mapsViewUrl()} target="_blank" rel="noreferrer" className="btn-lux w-full text-center">
             Haritada Görüntüle
           </a>
           <a href={mapsDirectionsUrl(wedding)} target="_blank" rel="noreferrer" className="btn-lux w-full text-center">
