@@ -111,12 +111,16 @@ adminRouter.get('/rsvps', async (req, res, next) => {
 adminRouter.post('/rsvps', async (req, res, next) => {
   try {
     const { firstName, lastName, guests, children, attending } = req.body || {}
-    if (!firstName || !lastName) return res.status(400).json({ error: 'name required' })
+    // Surname is optional (matches the guest-facing identity model); require at
+    // least one of the two so an entry always has something to show.
+    const first = String(firstName || '').trim()
+    const last = String(lastName || '').trim()
+    if (!first && !last) return res.status(400).json({ error: 'name required' })
     const rsvps = await storage.getCollection('rsvp')
     const entry = {
       id: nanoid(10),
-      firstName: String(firstName).trim(),
-      lastName: String(lastName).trim(),
+      firstName: first,
+      lastName: last,
       attending: attending === false ? false : true,
       guests: Number(guests) || 1,
       children: Number(children) || 0,
