@@ -6,6 +6,7 @@ import { getRsvps, addRsvp, updateRsvp, deleteRsvp, getSiteContent } from '../ad
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
 import PanelControls from '../PanelControls.jsx'
+import SortSelect from '../SortSelect.jsx'
 import { matchesQuery, compareNames, compareNewest } from '../search.js'
 import { GROUP_OPTIONS, sideOptions, TagSelect } from '../rsvpTags.jsx'
 
@@ -41,6 +42,7 @@ export default function Rsvps({ onAuthError }) {
   const [sort, setSort] = useState('recent')
   const [groupFilter, setGroupFilter] = useState('all')
   const [sideFilter, setSideFilter] = useState('all')
+  const [noteFilter, setNoteFilter] = useState('all')
   // Couple's names for the "side" tag labels (fall back to generic words).
   const [couple, setCouple] = useState({ bride: '', groom: '' })
 
@@ -65,6 +67,15 @@ export default function Rsvps({ onAuthError }) {
   const groupFilters = [{ value: 'all', label: 'Tümü' }, ...GROUP_OPTIONS.filter((o) => o.value)]
   const sideFilters = [{ value: 'all', label: 'Tümü' }, ...sideOpts.filter((o) => o.value)]
 
+  // Distinct notes, alphabetically (Turkish), for the note filter dropdown.
+  const noteOptions = useMemo(() => {
+    const set = new Set((rsvps || []).map((r) => (r.note || '').trim()).filter(Boolean))
+    const sorted = [...set].sort((a, b) => a.localeCompare(b, 'tr'))
+    return [{ value: 'all', label: 'Tümü' }, ...sorted.map((n) => ({ value: n, label: n }))]
+  }, [rsvps])
+  // Guard against a stale selection after a note is edited/removed.
+  const activeNote = noteOptions.some((o) => o.value === noteFilter) ? noteFilter : 'all'
+
   // Live totals — recomputed whenever the list changes.
   const totals = useMemo(() => {
     const list = rsvps || []
@@ -79,9 +90,10 @@ export default function Rsvps({ onAuthError }) {
       (rsvps || [])
         .filter((r) => groupFilter === 'all' || (r.group || '') === groupFilter)
         .filter((r) => sideFilter === 'all' || (r.side || '') === sideFilter)
+        .filter((r) => activeNote === 'all' || (r.note || '').trim() === activeNote)
         .filter((r) => matchesQuery(query, r.firstName, r.lastName, r.note))
         .sort(rsvpComparators[sort] || rsvpComparators.recent),
-    [rsvps, query, sort, groupFilter, sideFilter],
+    [rsvps, query, sort, groupFilter, sideFilter, activeNote],
   )
 
   // Surface a 401 as a session drop; everything else is a soft inline error.
@@ -269,6 +281,12 @@ export default function Rsvps({ onAuthError }) {
       <div className="flex flex-col gap-2 mb-3">
         <FilterRow label="Grup" value={groupFilter} onChange={setGroupFilter} options={groupFilters} />
         <FilterRow label="Yakınlık" value={sideFilter} onChange={setSideFilter} options={sideFilters} />
+        {noteOptions.length > 1 && (
+          <div className="flex items-center gap-1.5">
+            <span className="label w-16 shrink-0">Not</span>
+            <SortSelect value={activeNote} onChange={setNoteFilter} options={noteOptions} />
+          </div>
+        )}
       </div>
 
       {rsvps.length === 0 ? (
