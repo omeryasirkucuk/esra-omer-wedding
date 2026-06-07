@@ -114,10 +114,12 @@ adminRouter.get('/rsvps', async (req, res, next) => {
 const RSVP_GROUPS = new Set(['aile', 'arkadas', 'akraba', 'is'])
 const RSVP_SIDES = new Set(['gelin', 'damat', 'cift'])
 const cleanTag = (value, allowed) => (allowed.has(value) ? value : '')
+// Free-text custom label (e.g. "iş - üniversiteden", "aile - gelin tarafı").
+const cleanNote = (value) => String(value || '').trim().slice(0, 200)
 
 adminRouter.post('/rsvps', async (req, res, next) => {
   try {
-    const { firstName, lastName, guests, children, attending, group, side } = req.body || {}
+    const { firstName, lastName, guests, children, attending, group, side, note } = req.body || {}
     // Surname is optional (matches the guest-facing identity model); require at
     // least one of the two so an entry always has something to show.
     const first = String(firstName || '').trim()
@@ -133,6 +135,7 @@ adminRouter.post('/rsvps', async (req, res, next) => {
       children: Number(children) || 0,
       group: cleanTag(group, RSVP_GROUPS),
       side: cleanTag(side, RSVP_SIDES),
+      note: cleanNote(note),
       createdAt: new Date().toISOString(),
       addedByAdmin: true,
     }
@@ -147,7 +150,7 @@ adminRouter.post('/rsvps', async (req, res, next) => {
 // Edit an attendee's details / counts.
 adminRouter.post('/rsvps/update', async (req, res, next) => {
   try {
-    const { id, firstName, lastName, guests, children, attending, group, side } = req.body || {}
+    const { id, firstName, lastName, guests, children, attending, group, side, note } = req.body || {}
     const rsvps = await storage.getCollection('rsvp')
     const entry = rsvps.find((r) => r.id === id)
     if (!entry) return res.status(404).json({ error: 'not found' })
@@ -158,6 +161,7 @@ adminRouter.post('/rsvps/update', async (req, res, next) => {
     if (attending !== undefined) entry.attending = !!attending
     if (group !== undefined) entry.group = cleanTag(group, RSVP_GROUPS)
     if (side !== undefined) entry.side = cleanTag(side, RSVP_SIDES)
+    if (note !== undefined) entry.note = cleanNote(note)
     await storage.saveCollection('rsvp', rsvps)
     res.json(entry)
   } catch (e) {

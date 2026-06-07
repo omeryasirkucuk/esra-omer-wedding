@@ -34,7 +34,7 @@ export default function Rsvps({ onAuthError }) {
   const [rsvps, setRsvps] = useState(null)
   const [error, setError] = useState(false)
   // Add-form state, kept controlled so we can reset it after a successful add.
-  const [form, setForm] = useState({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '', note: '' })
   const [adding, setAdding] = useState(false)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
@@ -79,7 +79,7 @@ export default function Rsvps({ onAuthError }) {
       (rsvps || [])
         .filter((r) => groupFilter === 'all' || (r.group || '') === groupFilter)
         .filter((r) => sideFilter === 'all' || (r.side || '') === sideFilter)
-        .filter((r) => matchesQuery(query, r.firstName, r.lastName))
+        .filter((r) => matchesQuery(query, r.firstName, r.lastName, r.note))
         .sort(rsvpComparators[sort] || rsvpComparators.recent),
     [rsvps, query, sort, groupFilter, sideFilter],
   )
@@ -109,9 +109,10 @@ export default function Rsvps({ onAuthError }) {
         children: toCount(form.children),
         group: form.group,
         side: form.side,
+        note: form.note.trim(),
       })
       setRsvps((prev) => [created, ...(prev || [])])
-      setForm({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '' })
+      setForm({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '', note: '' })
     } catch (err) {
       handleError(err, () => setFormError('Eklenemedi, tekrar deneyin'))
     } finally {
@@ -128,6 +129,18 @@ export default function Rsvps({ onAuthError }) {
       setRsvps((prev) =>
         (prev || []).map((r) => (r.id === entry.id ? { ...r, ...updated } : r)),
       )
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  // Persist the free-text note on blur, if it actually changed.
+  async function handleNoteBlur(entry, rawValue) {
+    const value = rawValue.trim().slice(0, 200)
+    if ((entry.note || '') === value) return
+    setRsvps((prev) => (prev || []).map((r) => (r.id === entry.id ? { ...r, note: value } : r)))
+    try {
+      await updateRsvp({ id: entry.id, note: value })
     } catch (err) {
       handleError(err)
     }
@@ -229,6 +242,15 @@ export default function Rsvps({ onAuthError }) {
             ))}
           </select>
         </Field>
+        <Field label="Not" className="flex-1 min-w-[10rem] basis-full sm:basis-auto">
+          <input
+            type="text"
+            value={form.note}
+            placeholder="örn. iş - üniversiteden"
+            onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+          />
+        </Field>
         <button type="submit" className="btn-lux w-full sm:w-auto" disabled={adding}>
           {adding ? 'Ekleniyor…' : 'Ekle'}
         </button>
@@ -310,6 +332,15 @@ export default function Rsvps({ onAuthError }) {
                       tone="side"
                     />
                   </div>
+                  {/* Free-text custom label, saved on blur. */}
+                  <input
+                    type="text"
+                    defaultValue={r.note || ''}
+                    key={`note-${r.id}-${r.note || ''}`}
+                    placeholder="Not ekle"
+                    onBlur={(e) => handleNoteBlur(r, e.target.value)}
+                    className="mt-1.5 w-full max-w-xs box-border bg-bg border border-line rounded px-2.5 py-1 text-sm text-ink outline-none focus:border-gold"
+                  />
                 </div>
                 {/* Counts + date. On mobile they wrap onto their own line(s);
                     from sm up `sm:contents` drops them into the grid columns. */}
