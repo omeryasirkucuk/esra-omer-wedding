@@ -76,14 +76,6 @@ export default function Rsvps({ onAuthError }) {
   // Guard against a stale selection after a note is edited/removed.
   const activeNote = noteOptions.some((o) => o.value === noteFilter) ? noteFilter : 'all'
 
-  // Live totals — recomputed whenever the list changes.
-  const totals = useMemo(() => {
-    const list = rsvps || []
-    const adults = list.reduce((sum, r) => sum + (r.guests ?? 0), 0)
-    const children = list.reduce((sum, r) => sum + (r.children ?? 0), 0)
-    return { entries: list.length, adults, children, people: adults + children }
-  }, [rsvps])
-
   // Group/side tag filters, then name search, then the chosen ordering.
   const filtered = useMemo(
     () =>
@@ -95,6 +87,14 @@ export default function Rsvps({ onAuthError }) {
         .sort(rsvpComparators[sort] || rsvpComparators.recent),
     [rsvps, query, sort, groupFilter, sideFilter, activeNote],
   )
+
+  // Top summary tracks the filtered view, so the counts reflect the active
+  // group/side/note/search filters rather than the whole guest list.
+  const totals = useMemo(() => {
+    const adults = filtered.reduce((sum, r) => sum + (r.guests ?? 0), 0)
+    const children = filtered.reduce((sum, r) => sum + (r.children ?? 0), 0)
+    return { entries: filtered.length, adults, children, people: adults + children }
+  }, [filtered])
 
   // Surface a 401 as a session drop; everything else is a soft inline error.
   const handleError = (e, setLocal) => {
