@@ -7,8 +7,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { getScores, deleteScore } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
-import SearchBox from '../SearchBox.jsx'
-import { matchesQuery } from '../search.js'
+import PanelControls from '../PanelControls.jsx'
+import { matchesQuery, compareNames, compareNewest } from '../search.js'
+
+// Ordering options + comparators applied within each game's ranked list.
+const SCORE_SORTS = [
+  { value: 'score', label: 'Skor' },
+  { value: 'name', label: 'İsim (A→Z)' },
+  { value: 'recent', label: 'En yeni' },
+]
+const scoreComparators = {
+  score: (a, b) => (b.score ?? 0) - (a.score ?? 0),
+  name: (a, b) => compareNames(a.displayName, b.displayName),
+  recent: (a, b) => compareNewest(a.createdAt, b.createdAt),
+}
 
 // Map the stored game key to its Turkish display name.
 const GAME_NAMES = {
@@ -50,6 +62,7 @@ export default function Scores({ onAuthError }) {
   const [error, setError] = useState(false)
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('score')
 
   useEffect(() => {
     let alive = true
@@ -82,13 +95,14 @@ export default function Scores({ onAuthError }) {
     if (!scores) return []
     const keys = filter === 'all' ? GAME_KEYS : [filter]
     const named = scores.filter((s) => matchesQuery(query, s.displayName))
+    const order = scoreComparators[sort] || scoreComparators.score
     return keys
       .map((key) => ({
         key,
-        rows: bestPerPlayer(named.filter((s) => s.game === key)),
+        rows: bestPerPlayer(named.filter((s) => s.game === key)).sort(order),
       }))
       .filter((sec) => sec.rows.length > 0)
-  }, [scores, filter, query])
+  }, [scores, filter, query, sort])
 
   if (error) return <p className="text-muted text-center py-10">Veriler yüklenemedi.</p>
   if (!scores) return <p className="text-muted text-center py-10">Yükleniyor…</p>
@@ -111,7 +125,13 @@ export default function Scores({ onAuthError }) {
         ))}
       </div>
 
-      <SearchBox value={query} onChange={setQuery} />
+      <PanelControls
+        query={query}
+        onQuery={setQuery}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={SCORE_SORTS}
+      />
 
       <p className="label mb-3 lining-nums tabular-nums">{total} sonuç</p>
 

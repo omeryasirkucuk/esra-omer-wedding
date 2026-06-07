@@ -5,14 +5,29 @@ import { useEffect, useMemo, useState } from 'react'
 import { getPosts, deletePost, mediaUrl } from '../adminApi'
 import { formatDateTime } from '../format'
 import { alertDialog } from '../../lib/confirm.js'
-import SearchBox from '../SearchBox.jsx'
-import { matchesQuery } from '../search.js'
+import PanelControls from '../PanelControls.jsx'
+import { matchesQuery, compareNames, compareNewest } from '../search.js'
+
+// Ordering options + comparators for the pinboard feed.
+const POST_SORTS = [
+  { value: 'recent', label: 'Yeni gönderi' },
+  { value: 'oldest', label: 'Eski gönderi' },
+  { value: 'name', label: 'İsim (A→Z)' },
+  { value: 'likes', label: 'En çok beğeni' },
+]
+const postComparators = {
+  recent: (a, b) => compareNewest(a.createdAt, b.createdAt),
+  oldest: (a, b) => -compareNewest(a.createdAt, b.createdAt),
+  name: (a, b) => compareNames(a.displayName, b.displayName),
+  likes: (a, b) => (b.likes ?? 0) - (a.likes ?? 0),
+}
 
 export default function Posts({ onAuthError }) {
   const [posts, setPosts] = useState(null)
   const [error, setError] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('recent')
 
   useEffect(() => {
     let alive = true
@@ -33,10 +48,8 @@ export default function Posts({ onAuthError }) {
     const list = (showDeleted ? posts : posts.filter((p) => !p.deleted)).filter((p) =>
       matchesQuery(query, p.displayName),
     )
-    return [...list].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-  }, [posts, showDeleted, query])
+    return [...list].sort(postComparators[sort] || postComparators.recent)
+  }, [posts, showDeleted, query, sort])
 
   async function handleDelete(id) {
     try {
@@ -68,7 +81,13 @@ export default function Posts({ onAuthError }) {
         </label>
       </div>
 
-      <SearchBox value={query} onChange={setQuery} />
+      <PanelControls
+        query={query}
+        onQuery={setQuery}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={POST_SORTS}
+      />
 
       {visible.length === 0 ? (
         <p className="text-muted text-center py-10">

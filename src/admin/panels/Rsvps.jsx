@@ -5,8 +5,23 @@ import { useEffect, useMemo, useState } from 'react'
 import { getRsvps, addRsvp, updateRsvp, deleteRsvp } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
-import SearchBox from '../SearchBox.jsx'
-import { matchesQuery } from '../search.js'
+import PanelControls from '../PanelControls.jsx'
+import { matchesQuery, compareNames, compareNewest } from '../search.js'
+
+// Ordering options + comparators for the RSVP list.
+const RSVP_SORTS = [
+  { value: 'recent', label: 'Yeni eklenen' },
+  { value: 'oldest', label: 'Eski eklenen' },
+  { value: 'name', label: 'İsim (A→Z)' },
+  { value: 'people', label: 'En çok kişi' },
+]
+const fullName = (r) => `${r.firstName ?? ''} ${r.lastName ?? ''}`
+const rsvpComparators = {
+  recent: (a, b) => compareNewest(a.createdAt, b.createdAt),
+  oldest: (a, b) => -compareNewest(a.createdAt, b.createdAt),
+  name: (a, b) => compareNames(fullName(a), fullName(b)),
+  people: (a, b) => (b.guests ?? 0) + (b.children ?? 0) - ((a.guests ?? 0) + (a.children ?? 0)),
+}
 
 // Coerce a possibly-empty input value into a non-negative integer.
 function toCount(value) {
@@ -22,6 +37,7 @@ export default function Rsvps({ onAuthError }) {
   const [adding, setAdding] = useState(false)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('recent')
 
   useEffect(() => {
     let alive = true
@@ -44,10 +60,13 @@ export default function Rsvps({ onAuthError }) {
     return { entries: list.length, adults, children, people: adults + children }
   }, [rsvps])
 
-  // Name search: match on first/last name, case- and accent-insensitive.
+  // Name search (case- and accent-insensitive) then the chosen ordering.
   const filtered = useMemo(
-    () => (rsvps || []).filter((r) => matchesQuery(query, r.firstName, r.lastName)),
-    [rsvps, query],
+    () =>
+      (rsvps || [])
+        .filter((r) => matchesQuery(query, r.firstName, r.lastName))
+        .sort(rsvpComparators[sort] || rsvpComparators.recent),
+    [rsvps, query, sort],
   )
 
   // Surface a 401 as a session drop; everything else is a soft inline error.
@@ -166,7 +185,13 @@ export default function Rsvps({ onAuthError }) {
         {formError && <p className="text-rose text-sm w-full">{formError}</p>}
       </form>
 
-      <SearchBox value={query} onChange={setQuery} />
+      <PanelControls
+        query={query}
+        onQuery={setQuery}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={RSVP_SORTS}
+      />
 
       {rsvps.length === 0 ? (
         <p className="text-muted text-center py-10">Henüz katılım yok</p>

@@ -1,8 +1,8 @@
 // Reusable name-search input for the admin panels. Controlled by the parent,
 // with a leading magnifier and a clear button that appears once there's text.
-export default function SearchBox({ value, onChange, placeholder = 'İsim soyisim ara' }) {
+export default function SearchBox({ value, onChange, placeholder = 'İsim soyisim ara', className = 'mb-3' }) {
   return (
-    <div className="relative mb-3">
+    <div className={`relative ${className}`}>
       <span
         aria-hidden="true"
         className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"

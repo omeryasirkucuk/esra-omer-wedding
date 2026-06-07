@@ -9,8 +9,21 @@ import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl,
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 import MediaViewer from '../../pages/album/MediaViewer.jsx'
 import MediaThumb from '../../pages/album/MediaThumb.jsx'
-import SearchBox from '../SearchBox.jsx'
-import { matchesQuery } from '../search.js'
+import PanelControls from '../PanelControls.jsx'
+import { matchesQuery, compareNames } from '../search.js'
+
+// Ordering options + comparators for the per-uploader album sections.
+const ALBUM_SORTS = [
+  { value: 'name', label: 'İsim (A→Z)' },
+  { value: 'count', label: 'En çok medya' },
+  { value: 'recent', label: 'En yeni yükleme' },
+]
+const newestUpload = (s) => s.items.reduce((max, it) => Math.max(max, Date.parse(it.uploadedAt) || 0), 0)
+const albumComparators = {
+  name: (a, b) => compareNames(a.displayName, b.displayName),
+  count: (a, b) => b.items.length - a.items.length,
+  recent: (a, b) => newestUpload(b) - newestUpload(a),
+}
 
 const selKey = (slug, id) => `${slug}::${id}`
 
@@ -22,6 +35,7 @@ export default function Albums({ onAuthError }) {
   const [downloading, setDownloading] = useState(false)
   const [viewer, setViewer] = useState(null) // { key, index } of the open item
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('name')
 
   // One section per guest (uploaderId), merging the folders a rename may have
   // split into (e.g. "Ömer" + "Ömer K."). Each item keeps its own folder slug in
@@ -47,10 +61,13 @@ export default function Albums({ onAuthError }) {
     return out
   }, [uploaders])
 
-  // Name search over the uploader of each section.
+  // Name search over the uploader of each section, then the chosen ordering.
   const visibleSections = useMemo(
-    () => sections.filter((s) => matchesQuery(query, s.displayName)),
-    [sections, query],
+    () =>
+      sections
+        .filter((s) => matchesQuery(query, s.displayName))
+        .sort(albumComparators[sort] || albumComparators.name),
+    [sections, query, sort],
   )
 
   useEffect(() => {
@@ -278,7 +295,13 @@ export default function Albums({ onAuthError }) {
         </div>
       )}
 
-      <SearchBox value={query} onChange={setQuery} />
+      <PanelControls
+        query={query}
+        onQuery={setQuery}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={ALBUM_SORTS}
+      />
 
       {visibleSections.length === 0 ? (
         <p className="text-muted text-center py-10">Eşleşen kişi yok</p>

@@ -18,6 +18,17 @@ export function normalizeText(value) {
     .trim()
 }
 
+// Locale-aware A→Z comparison of two names (Turkish collation, accent-folded so
+// the ordering matches what the forgiving search considers equal).
+export function compareNames(a, b) {
+  return normalizeText(a).localeCompare(normalizeText(b), 'tr')
+}
+
+// Newest-first comparison of two ISO/date-ish values (missing dates sort last).
+export function compareNewest(a, b) {
+  return (Date.parse(b) || 0) - (Date.parse(a) || 0)
+}
+
 // True when every whitespace-separated word in `query` is a substring of the
 // normalized, combined `fields`. An empty/whitespace query matches everything.
 export function matchesQuery(query, ...fields) {
