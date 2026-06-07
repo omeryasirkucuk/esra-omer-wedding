@@ -76,6 +76,17 @@ export default function Rsvps({ onAuthError }) {
   // Guard against a stale selection after a note is edited/removed.
   const activeNote = noteOptions.some((o) => o.value === noteFilter) ? noteFilter : 'all'
 
+  // "Clear filters" only matters when something is actually narrowing the list
+  // (search counts as a filter; ordering does not).
+  const hasActiveFilter =
+    groupFilter !== 'all' || sideFilter !== 'all' || activeNote !== 'all' || query.trim() !== ''
+  function clearFilters() {
+    setGroupFilter('all')
+    setSideFilter('all')
+    setNoteFilter('all')
+    setQuery('')
+  }
+
   // Group/side tag filters, then name search, then the chosen ordering.
   const filtered = useMemo(
     () =>
@@ -277,16 +288,30 @@ export default function Rsvps({ onAuthError }) {
         sortOptions={RSVP_SORTS}
       />
 
-      {/* Tag filters: by social group and by side of the couple. */}
-      <div className="flex flex-col gap-2 mb-3">
-        <FilterRow label="Grup" value={groupFilter} onChange={setGroupFilter} options={groupFilters} />
-        <FilterRow label="Yakınlık" value={sideFilter} onChange={setSideFilter} options={sideFilters} />
-        {noteOptions.length > 1 && (
-          <div className="flex items-center gap-1.5">
-            <span className="label w-16 shrink-0">Not</span>
-            <SortSelect value={activeNote} onChange={setNoteFilter} options={noteOptions} />
-          </div>
-        )}
+      {/* Tag filters, grouped into one card so the stacked rows read as a
+          deliberate block, with a clear-all action in the header. */}
+      <div className="card-soft p-3 sm:p-4 mb-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="label-gold">Filtreler</span>
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!hasActiveFilter}
+            className="label-gold transition-colors hover:text-rose disabled:opacity-30 disabled:cursor-default disabled:hover:text-current"
+          >
+            Filtreleri Temizle
+          </button>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <FilterRow label="Grup" value={groupFilter} onChange={setGroupFilter} options={groupFilters} />
+          <FilterRow label="Yakınlık" value={sideFilter} onChange={setSideFilter} options={sideFilters} />
+          {noteOptions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="label w-20 shrink-0">Not</span>
+              <SortSelect value={activeNote} onChange={setNoteFilter} options={noteOptions} />
+            </div>
+          )}
+        </div>
       </div>
 
       {rsvps.length === 0 ? (
@@ -432,7 +457,7 @@ function Stat({ label, value, highlight }) {
 function FilterRow({ label, value, onChange, options }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="label w-16 shrink-0">{label}</span>
+      <span className="label w-20 shrink-0">{label}</span>
       {options.map((o) => (
         <button
           key={o.value}
