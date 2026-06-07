@@ -111,7 +111,7 @@ adminRouter.get('/rsvps', async (req, res, next) => {
 // Allowed attendee tags. `group` is the social circle; `side` is which of the
 // couple they belong to (gelin = bride, damat = groom, cift = both). Anything
 // outside these sets (including '') is stored as '' = untagged.
-const RSVP_GROUPS = new Set(['aile', 'arkadas', 'akraba'])
+const RSVP_GROUPS = new Set(['aile', 'arkadas', 'akraba', 'is'])
 const RSVP_SIDES = new Set(['gelin', 'damat', 'cift'])
 const cleanTag = (value, allowed) => (allowed.has(value) ? value : '')
 

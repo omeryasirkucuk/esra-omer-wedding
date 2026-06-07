@@ -9,6 +9,7 @@ export const GROUP_OPTIONS = [
   { value: 'aile', label: 'Aile' },
   { value: 'arkadas', label: 'Arkadaş' },
   { value: 'akraba', label: 'Akraba' },
+  { value: 'is', label: 'İş' },
 ]
 
 export function groupLabel(value) {
