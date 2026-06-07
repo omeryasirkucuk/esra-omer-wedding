@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import { getSiteContent, saveSiteContent, AuthError } from '../adminApi'
 import { wedding } from '../../data/wedding'
+import { PROGRAM_ICONS, programIcon, iconToneClass } from '../../data/programIcons.js'
 
 // Shared input styling so every field matches the rest of the admin surface.
 const INPUT = 'w-full bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold'
@@ -298,15 +299,27 @@ export default function SiteEditor({ onAuthError }) {
               key={i}
               className="card-soft p-3 flex flex-col sm:flex-row sm:items-end gap-3"
             >
-              <Field label="Simge" className="w-full sm:w-32">
-                <select
-                  value={row.icon}
-                  onChange={(e) => setProgram(i, 'icon', e.target.value)}
-                  className={INPUT}
-                >
-                  <option value="sparkle">Yıldız (sparkle)</option>
-                  <option value="heart">Kalp (heart)</option>
-                </select>
+              <Field label="Simge" className="w-full sm:w-44">
+                <div className="flex items-center gap-2">
+                  {/* Preview of the chosen glyph so the selection is visible. */}
+                  <span
+                    className={`shrink-0 text-2xl leading-none w-7 text-center ${iconToneClass(programIcon(row.icon).tone)}`}
+                    aria-hidden="true"
+                  >
+                    {programIcon(row.icon).glyph}
+                  </span>
+                  <select
+                    value={row.icon}
+                    onChange={(e) => setProgram(i, 'icon', e.target.value)}
+                    className={INPUT}
+                  >
+                    {PROGRAM_ICONS.map((ic) => (
+                      <option key={ic.key} value={ic.key}>
+                        {ic.glyph}  {ic.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </Field>
               <Field label="Başlık" className="flex-1">
                 <input

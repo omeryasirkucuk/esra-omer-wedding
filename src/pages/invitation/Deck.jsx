@@ -4,6 +4,7 @@ import Countdown from '../../components/Countdown.jsx'
 import AddToCalendar from '../../components/AddToCalendar.jsx'
 import RsvpForm from './RsvpForm.jsx'
 import { useSite } from '../../lib/siteContent.jsx'
+import { programIcon, iconToneClass } from '../../data/programIcons.js'
 import venueImage from '../../assets/venue.jpg'
 
 // Scroll to the next snap panel. Used by every "Kaydır" cue.
@@ -105,15 +106,16 @@ export default function Deck() {
         <Sprig width={150} leaves={false} />
         <p className="label mt-8 mb-6">Etkinlik Programı</p>
         <div className="w-full max-w-xs space-y-4">
-          {wedding.program.map((p) => (
-            <div key={p.title} className="flex items-center gap-3 whitespace-nowrap">
-              <span className={p.icon === 'heart' ? 'text-rose' : 'text-gold'}>
-                {p.icon === 'heart' ? '♥' : '✦'}
-              </span>
-              <span className="font-display text-primary text-lg md:text-xl">{p.title}</span>
-              <span className="label ml-auto">{p.time}</span>
-            </div>
-          ))}
+          {wedding.program.map((p) => {
+            const ic = programIcon(p.icon)
+            return (
+              <div key={p.title} className="flex items-center gap-3 whitespace-nowrap">
+                <span className={iconToneClass(ic.tone)}>{ic.glyph}</span>
+                <span className="font-display text-primary text-lg md:text-xl">{p.title}</span>
+                <span className="label ml-auto">{p.time}</span>
+              </div>
+            )
+          })}
         </div>
       </Panel>
 
