@@ -5,11 +5,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { getPosts, deletePost, mediaUrl } from '../adminApi'
 import { formatDateTime } from '../format'
 import { alertDialog } from '../../lib/confirm.js'
+import SearchBox from '../SearchBox.jsx'
+import { matchesQuery } from '../search.js'
 
 export default function Posts({ onAuthError }) {
   const [posts, setPosts] = useState(null)
   const [error, setError] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -27,11 +30,13 @@ export default function Posts({ onAuthError }) {
   // Newest first, optionally filtering out soft-deleted posts.
   const visible = useMemo(() => {
     if (!posts) return []
-    const list = showDeleted ? posts : posts.filter((p) => !p.deleted)
+    const list = (showDeleted ? posts : posts.filter((p) => !p.deleted)).filter((p) =>
+      matchesQuery(query, p.displayName),
+    )
     return [...list].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-  }, [posts, showDeleted])
+  }, [posts, showDeleted, query])
 
   async function handleDelete(id) {
     try {
@@ -63,8 +68,12 @@ export default function Posts({ onAuthError }) {
         </label>
       </div>
 
+      <SearchBox value={query} onChange={setQuery} />
+
       {visible.length === 0 ? (
-        <p className="text-muted text-center py-10">Henüz gönderi yok</p>
+        <p className="text-muted text-center py-10">
+          {query ? 'Eşleşen gönderi yok' : 'Henüz gönderi yok'}
+        </p>
       ) : (
         <div className="scroll-gold overflow-auto max-h-[72vh] space-y-3 pr-1">
           {visible.map((p) => (

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getRsvps, addRsvp, updateRsvp, deleteRsvp } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
+import SearchBox from '../SearchBox.jsx'
+import { matchesQuery } from '../search.js'
 
 // Coerce a possibly-empty input value into a non-negative integer.
 function toCount(value) {
@@ -19,6 +21,7 @@ export default function Rsvps({ onAuthError }) {
   const [form, setForm] = useState({ firstName: '', lastName: '', guests: 1, children: 0 })
   const [adding, setAdding] = useState(false)
   const [formError, setFormError] = useState('')
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -40,6 +43,12 @@ export default function Rsvps({ onAuthError }) {
     const children = list.reduce((sum, r) => sum + (r.children ?? 0), 0)
     return { entries: list.length, adults, children, people: adults + children }
   }, [rsvps])
+
+  // Name search: match on first/last name, case- and accent-insensitive.
+  const filtered = useMemo(
+    () => (rsvps || []).filter((r) => matchesQuery(query, r.firstName, r.lastName)),
+    [rsvps, query],
+  )
 
   // Surface a 401 as a session drop; everything else is a soft inline error.
   const handleError = (e, setLocal) => {
@@ -157,8 +166,12 @@ export default function Rsvps({ onAuthError }) {
         {formError && <p className="text-rose text-sm w-full">{formError}</p>}
       </form>
 
+      <SearchBox value={query} onChange={setQuery} />
+
       {rsvps.length === 0 ? (
         <p className="text-muted text-center py-10">Henüz katılım yok</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-muted text-center py-10">Eşleşen kayıt yok</p>
       ) : (
         <div className="card-soft scroll-gold overflow-auto max-h-[60vh]">
           {/* Header row — hidden on very small screens to keep rows readable. */}
@@ -171,7 +184,7 @@ export default function Rsvps({ onAuthError }) {
           </div>
 
           <ul>
-            {rsvps.map((r) => (
+            {filtered.map((r) => (
               <li
                 key={r.id}
                 className="px-4 py-3 border-b border-line/60 last:border-0 flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] sm:gap-4 sm:items-center"

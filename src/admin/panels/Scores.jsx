@@ -7,6 +7,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getScores, deleteScore } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
+import SearchBox from '../SearchBox.jsx'
+import { matchesQuery } from '../search.js'
 
 // Map the stored game key to its Turkish display name.
 const GAME_NAMES = {
@@ -47,6 +49,7 @@ export default function Scores({ onAuthError }) {
   const [scores, setScores] = useState(null)
   const [error, setError] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -78,13 +81,14 @@ export default function Scores({ onAuthError }) {
   const sections = useMemo(() => {
     if (!scores) return []
     const keys = filter === 'all' ? GAME_KEYS : [filter]
+    const named = scores.filter((s) => matchesQuery(query, s.displayName))
     return keys
       .map((key) => ({
         key,
-        rows: bestPerPlayer(scores.filter((s) => s.game === key)),
+        rows: bestPerPlayer(named.filter((s) => s.game === key)),
       }))
       .filter((sec) => sec.rows.length > 0)
-  }, [scores, filter])
+  }, [scores, filter, query])
 
   if (error) return <p className="text-muted text-center py-10">Veriler yüklenemedi.</p>
   if (!scores) return <p className="text-muted text-center py-10">Yükleniyor…</p>
@@ -107,10 +111,14 @@ export default function Scores({ onAuthError }) {
         ))}
       </div>
 
+      <SearchBox value={query} onChange={setQuery} />
+
       <p className="label mb-3 lining-nums tabular-nums">{total} sonuç</p>
 
       {sections.length === 0 ? (
-        <p className="text-muted text-center py-10">Henüz oynanmadı</p>
+        <p className="text-muted text-center py-10">
+          {query ? 'Eşleşen sonuç yok' : 'Henüz oynanmadı'}
+        </p>
       ) : (
         <div className="scroll-gold overflow-auto max-h-[72vh] space-y-6 pr-1">
           {sections.map((sec) => (

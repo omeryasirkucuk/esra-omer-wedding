@@ -9,6 +9,8 @@ import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl,
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 import MediaViewer from '../../pages/album/MediaViewer.jsx'
 import MediaThumb from '../../pages/album/MediaThumb.jsx'
+import SearchBox from '../SearchBox.jsx'
+import { matchesQuery } from '../search.js'
 
 const selKey = (slug, id) => `${slug}::${id}`
 
@@ -19,6 +21,7 @@ export default function Albums({ onAuthError }) {
   const [selected, setSelected] = useState(() => new Set())
   const [downloading, setDownloading] = useState(false)
   const [viewer, setViewer] = useState(null) // { key, index } of the open item
+  const [query, setQuery] = useState('')
 
   // One section per guest (uploaderId), merging the folders a rename may have
   // split into (e.g. "Ömer" + "Ömer K."). Each item keeps its own folder slug in
@@ -43,6 +46,12 @@ export default function Albums({ onAuthError }) {
     for (const s of out) s.items.sort((a, b) => Date.parse(b.uploadedAt) - Date.parse(a.uploadedAt))
     return out
   }, [uploaders])
+
+  // Name search over the uploader of each section.
+  const visibleSections = useMemo(
+    () => sections.filter((s) => matchesQuery(query, s.displayName)),
+    [sections, query],
+  )
 
   useEffect(() => {
     let alive = true
@@ -269,8 +278,13 @@ export default function Albums({ onAuthError }) {
         </div>
       )}
 
+      <SearchBox value={query} onChange={setQuery} />
+
+      {visibleSections.length === 0 ? (
+        <p className="text-muted text-center py-10">Eşleşen kişi yok</p>
+      ) : (
       <div className="space-y-8">
-        {sections.map((s) => (
+        {visibleSections.map((s) => (
           <section key={s.key}>
             <h3 className="font-display text-xl text-primary mb-1">{s.displayName}</h3>
             <p className="label-gold mb-3">{s.items.length} medya</p>
@@ -291,6 +305,7 @@ export default function Albums({ onAuthError }) {
           </section>
         ))}
       </div>
+      )}
 
       {viewer &&
         (() => {
