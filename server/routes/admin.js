@@ -7,6 +7,8 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
+import { ADMIN_SECRET, loadAdminUsers } from '../lib/adminAuthConfig.js'
+import { adminSystemRouter } from './adminSystem.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -15,23 +17,10 @@ const photoUpload = multer({
 
 // Admin API for the couple. Two default accounts (overridable via ADMIN_USERS
 // = "user:pass,user:pass"). Auth is a stateless HMAC bearer token — enough for
-// a private, single-event dashboard.
-const SECRET = process.env.ADMIN_SECRET || 'eo-wedding-admin-secret'
-
-function loadUsers() {
-  const raw = process.env.ADMIN_USERS
-  if (raw) {
-    return raw.split(',').map((pair) => {
-      const [u, ...rest] = pair.split(':')
-      return { u: u.trim(), p: rest.join(':').trim() }
-    })
-  }
-  return [
-    { u: 'esra', p: 'omer' },
-    { u: 'omer', p: 'esra' },
-  ]
-}
-const USERS = loadUsers()
+// a private, single-event dashboard. Credential config lives in
+// lib/adminAuthConfig.js, shared with the System tab endpoints.
+const SECRET = ADMIN_SECRET
+const USERS = loadAdminUsers()
 
 function tokenFor(username) {
   const sig = crypto.createHmac('sha256', SECRET).update(username).digest('hex')
@@ -74,6 +63,10 @@ adminRouter.use((req, res, next) => {
   req.adminUser = user
   next()
 })
+
+// System tab endpoints (config snapshot, secret reveal, music/OG uploads).
+// Mounted after the auth gate so every route inherits it.
+adminRouter.use(adminSystemRouter)
 
 adminRouter.get('/overview', async (req, res, next) => {
   try {

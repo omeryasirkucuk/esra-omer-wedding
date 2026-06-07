@@ -16,6 +16,14 @@ export const wedding = {
   timeLabel: '19:30',
   quote: 'Bu mutlu günümüzde sizi de aramızda görmek isteriz.',
   closing: 'Sevgiyle bekleriz',
+  // Link-preview / social metadata. `siteUrl` is the public origin of the
+  // deployment; the server injects these into the built index.html at runtime
+  // so a fork never needs to rebuild just to change the OG tags.
+  meta: {
+    title: 'Esra & Ömer Wedding',
+    description: 'Esra & Ömer Wedding',
+    siteUrl: 'https://esraomer.com',
+  },
   families: [
     { parents: 'Gülnaz · İlhan', surname: 'Şahin' },
     { parents: 'Ayşegül · Muhammet', surname: 'Küçük' },

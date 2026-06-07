@@ -5,20 +5,24 @@ import { Link } from 'react-router-dom'
 import Emblem from '../../components/Emblem.jsx'
 import IdentityPrompt from '../../components/IdentityPrompt.jsx'
 import { hasProfile } from '../../lib/identity.js'
+import { useSite } from '../../lib/siteContent.jsx'
 
 // Each tile maps to a route at /oyunlar/<id>. `symbol` is a small font-display
 // glyph shown inside a gold medallion.
 // `descLang` marks descriptors that are English words so the uppercase label
 // uses English casing (QUIZ, not QUİZ) instead of Turkish.
-const games = [
+// The Kim Demiş descriptor names the couple, so it is built from site content.
+const buildGames = (bride, groom) => [
   { id: 'eslestirme', name: 'Hafıza', descriptor: 'Eşleştirme', symbol: '✿' },
   { id: 'cifti-tani', name: 'Çifti Tanı', descriptor: 'Quiz', symbol: '?', descLang: 'en' },
   { id: 'foto-tahmin', name: 'Foto Tahmin', descriptor: 'Bil bakalım', symbol: '◐' },
   { id: 'yapboz', name: 'Yapboz', descriptor: 'Slide puzzle', symbol: '⊞', descLang: 'en' },
-  { id: 'kim-demis', name: 'Kim Demiş?', descriptor: 'Esra mı Ömer mi', symbol: '❝' },
+  { id: 'kim-demis', name: 'Kim Demiş?', descriptor: `${bride} mı ${groom} mi`, symbol: '❝' },
 ]
 
 export default function GamesHub() {
+  const { bride, groom } = useSite()
+  const games = buildGames(bride, groom)
   // Bump to re-render once a profile is saved via the identity prompt.
   const [, forceRerender] = useState(0)
 

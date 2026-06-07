@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useSite } from '../../lib/siteContent.jsx'
 
 const CameraIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -10,6 +11,7 @@ const CameraIcon = () => (
 // The top compose card: a transparent textarea, an optional photo/video
 // attachment with a tiny preview, and the "Paylaş" button.
 export default function Composer({ onSubmit, busy, progress }) {
+  const { bride, groom } = useSite()
   const [text, setText] = useState('')
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -48,7 +50,7 @@ export default function Composer({ onSubmit, busy, progress }) {
         onChange={(e) => setText(e.target.value)}
         rows={2}
         maxLength={500}
-        placeholder="Esra & Ömer'e birkaç kelime…"
+        placeholder={`${bride} & ${groom}'e birkaç kelime…`}
         className="w-full bg-transparent resize-none font-display text-primary text-[15px] md:text-base leading-relaxed placeholder:text-[#9aa6b0] focus:outline-none"
       />
 

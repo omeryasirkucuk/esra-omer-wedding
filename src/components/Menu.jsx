@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Emblem from './Emblem.jsx'
+import { useSite } from '../lib/siteContent.jsx'
 
 const LINKS = [
   { label: 'Ana Sayfa', to: '/' },
@@ -12,6 +13,7 @@ const LINKS = [
 
 // Full-screen navigation overlay. No music control anywhere by design.
 export default function Menu({ onClose }) {
+  const site = useSite()
   const navigate = useNavigate()
   const go = (to) => {
     onClose()
@@ -45,7 +47,7 @@ export default function Menu({ onClose }) {
         lang="en"
         className="font-sans uppercase tracking-[0.3em] text-[11px] text-[#cdd2c4] mb-6"
       >
-        Esra &amp; Ömer Wedding
+        {site.meta?.title || `${site.bride} & ${site.groom} Wedding`}
       </div>
       {LINKS.map((l, i) => (
         <motion.button

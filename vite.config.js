@@ -12,6 +12,8 @@ export default defineConfig({
     proxy: {
       '/api': `http://localhost:${API_PORT}`,
       '/media': `http://localhost:${API_PORT}`,
+      // The OG image is served by the API (uploaded via the admin System tab).
+      '/og.png': `http://localhost:${API_PORT}`,
     },
   },
   build: {

@@ -110,6 +110,12 @@ export default function SiteEditor({ onAuthError }) {
     setForm((f) => ({ ...f, venue: { ...f.venue, [key]: value } }))
   }
 
+  // Patch a link-preview (meta) field.
+  function setMeta(key, value) {
+    setSaved(false)
+    setForm((f) => ({ ...f, meta: { ...f.meta, [key]: value } }))
+  }
+
   // Patch one of the two families in place (index 0 or 1).
   function setFamily(index, key, value) {
     setSaved(false)
@@ -376,6 +382,34 @@ export default function SiteEditor({ onAuthError }) {
             className={INPUT}
           />
         </Field>
+      </Section>
+
+      {/* Link preview --------------------------------------------------- */}
+      <Section title="Bağlantı Önizleme">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Site Başlığı">
+            <input
+              type="text"
+              value={form.meta?.title || ''}
+              onChange={(e) => setMeta('title', e.target.value)}
+              className={INPUT}
+            />
+            <span className="text-muted text-xs mt-1">
+              Sekme başlığı ve paylaşım kartlarında görünür.
+            </span>
+          </Field>
+          <Field label="Site Adresi (https://…)">
+            <input
+              type="url"
+              value={form.meta?.siteUrl || ''}
+              onChange={(e) => setMeta('siteUrl', e.target.value)}
+              className={INPUT}
+            />
+            <span className="text-muted text-xs mt-1">
+              WhatsApp/sosyal önizlemelerindeki bağlantı ve görsel adresi.
+            </span>
+          </Field>
+        </div>
       </Section>
 
       {/* Sticky save bar ---------------------------------------------- */}

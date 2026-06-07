@@ -4,6 +4,7 @@
 // "Foto Tahmin" (with image upload) — are saved together as one object.
 import { useEffect, useState } from 'react'
 import { getGamesContent, saveGamesContent, uploadPhoto, mediaUrl } from '../adminApi'
+import { useCoupleNames } from '../useCoupleNames'
 import { quizQuestions } from '../../data/quiz'
 import { alertDialog } from '../../lib/confirm.js'
 
@@ -123,6 +124,7 @@ function normalizePuzzle(p) {
 }
 
 export default function GamesEditor({ onAuthError }) {
+  const couple = useCoupleNames()
   const [quiz, setQuiz] = useState(null)
   const [whoSaid, setWhoSaid] = useState(null)
   const [photoGuess, setPhotoGuess] = useState(null)
@@ -333,6 +335,7 @@ export default function GamesEditor({ onAuthError }) {
               index={wi}
               count={whoSaid.length}
               item={w}
+              couple={couple}
               onQuote={(t) => setWhoQuote(wi, t)}
               onAnswer={(a) => setWhoAnswer(wi, a)}
               onRemove={() => removeWho(wi)}
@@ -580,11 +583,13 @@ function QuestionCard({
 
 // --- Who-said card ---------------------------------------------------------
 
-function WhoSaidCard({ index, count, item, onQuote, onAnswer, onRemove, onMove }) {
+function WhoSaidCard({ index, count, item, couple, onQuote, onAnswer, onRemove, onMove }) {
   const name = `who-answer-${index}`
+  // Stored answer keys stay 'esra'/'omer' (bride/groom) for compatibility with
+  // existing content and scores; only the visible labels follow the site names.
   const people = [
-    { value: 'esra', label: 'Esra' },
-    { value: 'omer', label: 'Ömer' },
+    { value: 'esra', label: couple.bride },
+    { value: 'omer', label: couple.groom },
   ]
   return (
     <div className="card-soft p-4 sm:p-5">

@@ -17,6 +17,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   HeadObjectCommand,
+  DeleteObjectCommand,
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -222,6 +223,49 @@ export const s3StorageDriver = {
         ContentType: contentType,
       }),
     )
+  },
+
+  // --- Generic single objects (invitation music, OG image) -----------------
+  // Same keys as the local driver (e.g. "music/davetiye-music.mp3").
+
+  async objectInfo(key) {
+    try {
+      const out = await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }))
+      return {
+        exists: true,
+        size: out.ContentLength,
+        modifiedAt: out.LastModified ? out.LastModified.toISOString() : undefined,
+      }
+    } catch (err) {
+      if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) return { exists: false }
+      throw err
+    }
+  },
+
+  async hasObject(key) {
+    return (await this.objectInfo(key)).exists
+  },
+
+  async putObject(key, tempPath, contentType) {
+    await new Upload({
+      client,
+      params: { Bucket: BUCKET, Key: key, Body: fs.createReadStream(tempPath), ContentType: contentType },
+    }).done()
+    fs.unlink(tempPath, () => {})
+  },
+
+  async deleteObject(key) {
+    try {
+      await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  // Same range-capable streaming the music route relies on.
+  async streamObject(key, req, res, contentType) {
+    return this.streamMedia(key, req, res, contentType)
   },
 
   // Presign any bucket key (used for the invitation music).

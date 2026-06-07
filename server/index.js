@@ -8,6 +8,9 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { storage } from './storage/index.js'
+import { slugify } from './storage/shared.js'
+import { MUSIC_KEY, OG_IMAGE_KEY } from './lib/objectKeys.js'
+import { createIndexHandler } from './lib/metaInject.js'
 import { rsvpRouter } from './routes/rsvp.js'
 import { postsRouter } from './routes/posts.js'
 import { uploadsRouter } from './routes/uploads.js'
@@ -30,7 +33,7 @@ app.get('/media/*', (req, res) => storage.mediaHandler(req, res))
 
 // Invitation background music. On S3 it 302-redirects to a presigned URL for
 // the private object; locally it falls back to a file under public/music.
-const MUSIC_KEY = process.env.MUSIC_KEY || 'music/davetiye-music.mp3'
+// (MUSIC_KEY lives in lib/objectKeys.js, shared with the admin upload route.)
 
 // Returns a single, stable media URL the player can use for ALL range requests.
 // On S3 that's one presigned URL (fetched once → no per-range redirect churn,
@@ -46,13 +49,40 @@ app.get('/api/music-url', async (_req, res) => {
 })
 
 app.get('/api/music', async (req, res) => {
-  // Prefer same-origin, range-capable streaming (reliable on iOS).
-  if (storage.streamMedia) {
+  // Prefer same-origin, range-capable streaming (reliable on iOS). On S3 this
+  // is the unchanged original path; an admin upload simply writes MUSIC_KEY.
+  if (storage.name === 's3') {
     return storage.streamMedia(MUSIC_KEY, req, res, 'audio/mpeg')
   }
-  // Local fallback (no S3): sendFile handles Range + MIME automatically.
-  const local = path.join(dist, 'music', 'davetiye-music.mp3')
-  if (fs.existsSync(local)) return res.sendFile(local)
+  // Local driver: an admin-uploaded file under the data dir wins…
+  if (await storage.hasObject(MUSIC_KEY)) {
+    return storage.streamObject(MUSIC_KEY, req, res, 'audio/mpeg')
+  }
+  // …otherwise the bundled file (dist in production, public in dev).
+  // sendFile handles Range + MIME automatically.
+  for (const base of [dist, path.join(__dirname, '..', 'public')]) {
+    const local = path.join(base, 'music', 'davetiye-music.mp3')
+    if (fs.existsSync(local)) return res.sendFile(local)
+  }
+  res.status(404).end()
+})
+
+// Link-preview image: the admin-uploaded one when present (described in the
+// site_assets doc so it streams with the right content type), else the bundled
+// public/og.png that ships with the build.
+app.get('/og.png', async (req, res) => {
+  try {
+    const assets = await storage.getDoc('site_assets')
+    if (assets?.ogImage && (await storage.hasObject(OG_IMAGE_KEY))) {
+      return storage.streamObject(OG_IMAGE_KEY, req, res, assets.ogImage.mime)
+    }
+  } catch {
+    /* fall through to the bundled image */
+  }
+  for (const base of [dist, path.join(__dirname, '..', 'public')]) {
+    const local = path.join(base, 'og.png')
+    if (fs.existsSync(local)) return res.sendFile(local)
+  }
   res.status(404).end()
 })
 
@@ -94,12 +124,15 @@ app.get('/api/calendar.ics', async (_req, res) => {
   const start = new Date(w.dateISO)
   const end = new Date(start.getTime() + 4 * 60 * 60 * 1000)
   const locationText = `${w.venue.name}, ${w.venue.address}`
+  // Couple slug ("esra-omer") drives the calendar identifiers and filename, so
+  // a fork inherits correct, unique values just by editing the names.
+  const slug = `${slugify(w.bride)}-${slugify(w.groom)}`
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//esra-omer//wedding//TR',
+    `PRODID:-//${slug}//wedding//TR`,
     'BEGIN:VEVENT',
-    `UID:${icsStamp(w.dateISO)}-esra-omer@wedding`,
+    `UID:${icsStamp(w.dateISO)}-${slug}@wedding`,
     `DTSTAMP:${icsStamp(w.dateISO)}`,
     `DTSTART:${icsStamp(start)}`,
     `DTEND:${icsStamp(end)}`,
@@ -120,7 +153,7 @@ app.get('/api/calendar.ics', async (_req, res) => {
   lines.push('END:VEVENT', 'END:VCALENDAR')
   const ics = lines.join('\r\n')
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
-  res.setHeader('Content-Disposition', 'inline; filename="esra-omer-dugun.ics"')
+  res.setHeader('Content-Disposition', `inline; filename="${slug}-dugun.ics"`)
   res.send(ics)
 })
 
@@ -134,10 +167,14 @@ app.use('/api/scores', scoresRouter)
 app.get('/api/health', (_req, res) => res.json({ ok: true, storage: storage.name }))
 
 // In production, serve the built SPA and fall back to index.html for routing.
+// index.html goes through the meta injector so the social/link-preview tags
+// reflect the admin-edited site content (title, domain) without a rebuild.
 const dist = path.join(__dirname, '..', 'dist')
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist))
-  app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')))
+  const serveIndex = createIndexHandler(dist, () => storage.getDoc('site_content'))
+  // index:false so "/" falls through to the injected handler below.
+  app.use(express.static(dist, { index: false }))
+  app.get('*', serveIndex)
 }
 
 // Central error handler so a failed storage call returns 500, not a hang.

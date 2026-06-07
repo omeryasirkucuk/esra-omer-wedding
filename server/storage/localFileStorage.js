@@ -176,6 +176,60 @@ export const localStorageDriver = {
     return null
   },
 
+  // --- Generic single objects (invitation music, OG image) -----------------
+  // Keys live directly under the storage root, mirroring the S3 bucket layout
+  // (e.g. "music/davetiye-music.mp3", "site/og.png").
+
+  // Resolve a key under ROOT with a path-traversal guard.
+  objectPath(key) {
+    const full = path.resolve(ROOT, key)
+    if (!full.startsWith(ROOT)) throw new Error('invalid object key')
+    return full
+  },
+
+  async objectInfo(key) {
+    try {
+      const stat = fs.statSync(this.objectPath(key))
+      return { exists: true, size: stat.size, modifiedAt: stat.mtime.toISOString() }
+    } catch {
+      return { exists: false }
+    }
+  },
+
+  async hasObject(key) {
+    return (await this.objectInfo(key)).exists
+  },
+
+  // Move an uploaded temp file into place (copy+unlink so it also works when
+  // the OS temp dir lives on another volume).
+  async putObject(key, tempPath) {
+    const full = this.objectPath(key)
+    fs.mkdirSync(path.dirname(full), { recursive: true })
+    try {
+      fs.renameSync(tempPath, full)
+    } catch {
+      fs.copyFileSync(tempPath, full)
+      fs.unlink(tempPath, () => {})
+    }
+  },
+
+  async deleteObject(key) {
+    try {
+      fs.unlinkSync(this.objectPath(key))
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  // sendFile handles Range requests and MIME automatically.
+  async streamObject(key, _req, res, contentType) {
+    if (contentType) res.type(contentType)
+    res.sendFile(this.objectPath(key), (err) => {
+      if (err && !res.headersSent) res.status(404).end()
+    })
+  },
+
   // Serves /media/<slug>/<file> straight from disk.
   mediaHandler(req, res) {
     const rel = req.params[0] || ''

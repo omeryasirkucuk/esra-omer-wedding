@@ -140,12 +140,12 @@ export function selectedZipUrl(items) {
 export const getScores = () => get('/api/admin/scores')
 export const deleteScore = (id) => post('/api/admin/scores/delete', { id })
 
-// Upload an image for use inside the games. Returns { url, type }.
-export async function uploadPhoto(file) {
+// Shared multipart upload helper (game photos, music, OG image).
+async function uploadFile(path, file) {
   const token = getToken()
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(`${BASE}/api/admin/photos`, {
+  const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -157,3 +157,20 @@ export async function uploadPhoto(file) {
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
   return res.json()
 }
+
+// Upload an image for use inside the games. Returns { url, type }.
+export const uploadPhoto = (file) => uploadFile('/api/admin/photos', file)
+
+// System tab: deployment config snapshot (storage, music/OG status, masked
+// secrets) and the explicit per-key plaintext reveal.
+export const getSystemInfo = () => get('/api/admin/system')
+export const revealSecret = (key) => post('/api/admin/system/reveal', { key })
+
+// Invitation music: upload replaces the streamed file; delete falls back to
+// the bundled one (when present).
+export const uploadMusic = (file) => uploadFile('/api/admin/music', file)
+export const deleteMusic = () => request('DELETE', '/api/admin/music')
+
+// Link-preview (OG) image shown by WhatsApp/social when the site is shared.
+export const uploadOgImage = (file) => uploadFile('/api/admin/og-image', file)
+export const deleteOgImage = () => request('DELETE', '/api/admin/og-image')

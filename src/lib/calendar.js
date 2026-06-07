@@ -5,6 +5,8 @@
 // the admin updates the calendar entry too). It starts at the site's arrival
 // time (dateISO) and runs ~4 hours.
 
+import { coupleSlug } from './couple.js'
+
 function toICSDate(iso) {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
@@ -33,12 +35,13 @@ function eventFromWedding(w) {
 
 export function buildICS(w) {
   const e = eventFromWedding(w)
+  const slug = coupleSlug(w)
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//esra-omer//wedding//TR',
+    `PRODID:-//${slug}//wedding//TR`,
     'BEGIN:VEVENT',
-    `UID:${toICSDate(e.startISO)}-esra-omer@wedding`,
+    `UID:${toICSDate(e.startISO)}-${slug}@wedding`,
     `DTSTAMP:${toICSDate(e.startISO)}`,
     `DTSTART:${toICSDate(e.startISO)}`,
     `DTEND:${toICSDate(e.endISO)}`,
@@ -64,7 +67,7 @@ export function downloadICS(w) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'esra-omer-dugun.ics'
+  a.download = `${coupleSlug(w)}-dugun.ics`
   document.body.appendChild(a)
   a.click()
   a.remove()

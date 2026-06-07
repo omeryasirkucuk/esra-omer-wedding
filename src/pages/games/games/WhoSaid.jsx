@@ -4,31 +4,36 @@
 // below.
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../../lib/api.js'
+import { useSite } from '../../../lib/siteContent.jsx'
 import GameShell from '../GameShell.jsx'
 import GameOverActions from '../GameOverActions.jsx'
 import { useScoreSubmit } from '../useScoreSubmit.js'
 import EndScoreboard from '../EndScoreboard.jsx'
 
-// Bundled fallback quotes, used when nothing is stored yet. Each item carries a
-// `who` display label ('Esra' | 'Ömer').
+// Bundled fallback quotes, used when nothing is stored yet. The `answer` keys
+// are the stored shape's opaque person keys: 'esra' = bride, 'omer' = groom
+// (kept for compatibility with existing stored content and scores). Display
+// names come from the site content, so a fork only edits the admin.
 const defaultRounds = [
-  { quote: 'Bir kahve daha içsek mi?', who: 'Esra' },
-  { quote: 'Maçı kaçırmam, sonra konuşuruz.', who: 'Ömer' },
-  { quote: 'Kediye yine ben mama verdim.', who: 'Esra' },
-  { quote: 'Bu akşam yemeği ben yapayım.', who: 'Ömer' },
-  { quote: 'Tatil planını çoktan hazırladım bile.', who: 'Esra' },
+  { quote: 'Bir kahve daha içsek mi?', answer: 'esra' },
+  { quote: 'Maçı kaçırmam, sonra konuşuruz.', answer: 'omer' },
+  { quote: 'Kediye yine ben mama verdim.', answer: 'esra' },
+  { quote: 'Bu akşam yemeği ben yapayım.', answer: 'omer' },
+  { quote: 'Tatil planını çoktan hazırladım bile.', answer: 'esra' },
 ]
 
-const PEOPLE = ['Esra', 'Ömer']
-
 // Map a stored item ({ quote, answer: 'esra' | 'omer' }) to the display shape
-// the component renders with ({ quote, who: 'Esra' | 'Ömer' }).
-function fromStored(item) {
-  return { quote: item.quote || '', who: item.answer === 'omer' ? 'Ömer' : 'Esra' }
+// the component renders with ({ quote, who: <bride name> | <groom name> }).
+function fromStored(item, bride, groom) {
+  return { quote: item.quote || '', who: item.answer === 'omer' ? groom : bride }
 }
 
 export default function WhoSaid() {
-  const [rounds, setRounds] = useState(defaultRounds)
+  const { bride, groom } = useSite()
+  const PEOPLE = [bride, groom]
+  const gameLabel = `${bride} mı ${groom} mi`
+  const [stored, setStored] = useState(defaultRounds)
+  const rounds = stored.map((item) => fromStored(item, bride, groom))
 
   // Prefer stored content; fall back to the bundled defaults on empty/error.
   useEffect(() => {
@@ -38,7 +43,7 @@ export default function WhoSaid() {
       .then((d) => {
         if (!alive) return
         if (Array.isArray(d?.whoSaid) && d.whoSaid.length > 0) {
-          setRounds(d.whoSaid.map(fromStored))
+          setStored(d.whoSaid)
         }
       })
       .catch(() => {})
@@ -106,7 +111,7 @@ export default function WhoSaid() {
 
   if (done) {
     return (
-      <GameShell label="Esra mı Ömer mi" title="Kim Demiş?">
+      <GameShell label={gameLabel} title="Kim Demiş?">
         <div className="text-center mt-4 animate-fadeUp">
           <p className="font-display italic text-primary text-2xl md:text-3xl">
             Bitti
@@ -119,7 +124,7 @@ export default function WhoSaid() {
   }
 
   return (
-    <GameShell label="Esra mı Ömer mi" title="Kim Demiş?">
+    <GameShell label={gameLabel} title="Kim Demiş?">
       <p className="label text-center">
         {index + 1}/{total}
       </p>

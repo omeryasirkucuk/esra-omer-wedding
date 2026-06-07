@@ -1,5 +1,7 @@
 # Render blueprint. In Render: New → Blueprint → connect this repo.
 # Set the two AWS secrets in the dashboard (they are not stored here).
+# Forks: rename the service and point S3_BUCKET at your own bucket. Consider
+# also setting ADMIN_USERS and ADMIN_SECRET in the dashboard (see README).
 services:
   - type: web
     name: esra-omer-wedding

@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react'
 import Emblem from '../components/Emblem'
 import { login, logout, isAuthed } from './adminApi'
+import { useCoupleNames } from './useCoupleNames'
 import Overview from './panels/Overview'
 import SiteEditor from './panels/SiteEditor'
 import Rsvps from './panels/Rsvps'
@@ -11,6 +12,7 @@ import Albums from './panels/Albums'
 import Posts from './panels/Posts'
 import GamesEditor from './panels/GamesEditor'
 import Scores from './panels/Scores'
+import SystemPanel from './panels/SystemPanel'
 
 // Link back to the guest site. On admin.esraomer.com this strips the "admin."
 // subdomain; locally (where admin loads under /admin) it just points to "/".
@@ -31,6 +33,7 @@ const TABS = [
   { id: 'posts', label: 'Pano', Panel: Posts },
   { id: 'games', label: 'Oyunlar', Panel: GamesEditor },
   { id: 'scores', label: 'Skorlar', Panel: Scores },
+  { id: 'system', label: 'Sistem', Panel: SystemPanel },
 ]
 
 export default function AdminApp() {
@@ -110,6 +113,7 @@ function LoginScreen({ onSuccess }) {
 }
 
 function Dashboard({ onAuthError }) {
+  const { bride, groom } = useCoupleNames()
   const [active, setActive] = useState('overview')
   const ActivePanel = TABS.find((t) => t.id === active).Panel
 
@@ -122,7 +126,7 @@ function Dashboard({ onAuthError }) {
           {/* Compact title under sm, full brand from sm up. */}
           <span className="font-display text-lg sm:text-xl text-primary flex-1 min-w-0 truncate">
             <span className="sm:hidden">Yönetim</span>
-            <span className="hidden sm:inline">Esra &amp; Ömer · Yönetim</span>
+            <span className="hidden sm:inline">{bride} &amp; {groom} · Yönetim</span>
           </span>
           <a
             href={guestHomeHref()}
