@@ -166,6 +166,15 @@ export const uploadPhoto = (file) => uploadFile('/api/admin/photos', file)
 export const getSystemInfo = () => get('/api/admin/system')
 export const revealSecret = (key) => post('/api/admin/system/reveal', { key })
 
+// Admin accounts managed from the System tab. Every mutation carries the
+// requesting admin's current password (verified server-side).
+export const addAdminUser = (currentPassword, username, password) =>
+  post('/api/admin/admin-users', { currentPassword, username, password })
+export const setAdminPassword = (currentPassword, username, password) =>
+  post('/api/admin/admin-users/password', { currentPassword, username, password })
+export const deleteAdminUser = (currentPassword, username) =>
+  post('/api/admin/admin-users/delete', { currentPassword, username })
+
 // Invitation music: upload replaces the streamed file; delete falls back to
 // the bundled one (when present).
 export const uploadMusic = (file) => uploadFile('/api/admin/music', file)

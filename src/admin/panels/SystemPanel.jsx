@@ -11,6 +11,9 @@ import {
   deleteMusic,
   uploadOgImage,
   deleteOgImage,
+  addAdminUser,
+  setAdminPassword,
+  deleteAdminUser,
   AuthError,
 } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
@@ -59,6 +62,7 @@ export default function SystemPanel({ onAuthError }) {
       <Checklist info={info} siteMeta={siteMeta} />
       <MusicCard info={info} stamp={stamp} onChanged={reload} onAuthError={onAuthError} />
       <OgImageCard info={info} stamp={stamp} onChanged={reload} onAuthError={onAuthError} />
+      <AdminUsersCard info={info} onChanged={reload} onAuthError={onAuthError} />
       <ConfigCard info={info} onAuthError={onAuthError} />
     </div>
   )
@@ -96,10 +100,13 @@ function Checklist({ info, siteMeta }) {
         : 'Site adresi tanımsız (Düğün Bilgileri › Bağlantı Önizleme)',
     },
     {
-      ok: info.admin.usersFromEnv,
-      label: info.admin.usersFromEnv
-        ? 'Yönetici hesapları .env üzerinden tanımlı'
-        : 'Varsayılan yönetici hesapları kullanılıyor (.env ile değiştirin)',
+      ok: info.admin.usersSource !== 'default',
+      label:
+        info.admin.usersSource === 'stored'
+          ? 'Yönetici hesapları panelden tanımlı'
+          : info.admin.usersSource === 'env'
+            ? 'Yönetici hesapları .env üzerinden tanımlı'
+            : 'Varsayılan yönetici hesapları kullanılıyor (aşağıdan değiştirin)',
     },
     {
       ok: info.admin.secretFromEnv,
@@ -274,6 +281,165 @@ function OgImageCard({ info, stamp, onChanged, onAuthError }) {
   )
 }
 
+// --- Admin accounts -------------------------------------------------------------
+// Add/remove accounts and change passwords. Every action asks for the
+// logged-in admin's CURRENT password (verified server-side), so a stolen
+// session alone can't rotate the credentials.
+
+const SMALL_INPUT =
+  'bg-bg border border-line rounded px-3 py-2 text-ink text-sm outline-none focus:border-gold'
+
+function AdminUsersCard({ info, onChanged, onAuthError }) {
+  // Which inline form is open: null | 'add' | username (password change).
+  const [open, setOpen] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  async function run(action, okText) {
+    setBusy(true)
+    setMessage('')
+    try {
+      await action()
+      setOpen(null)
+      setMessage(okText)
+      onChanged()
+    } catch (err) {
+      if (err instanceof AuthError) return onAuthError()
+      setMessage(
+        String(err?.message || '').includes('403')
+          ? 'Mevcut şifre yanlış.'
+          : 'İşlem başarısız, tekrar deneyin.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete(username, currentPassword) {
+    const ok = await confirmDialog(`"${username}" hesabı silinsin mi?`)
+    if (!ok) return
+    run(() => deleteAdminUser(currentPassword, username), 'Hesap silindi.')
+  }
+
+  return (
+    <Section title="Yönetici Hesapları">
+      <ul className="divide-y divide-line">
+        {info.admin.users.map((u) => (
+          <li key={u} className="py-2.5">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-ink text-sm">{u}</span>
+              <button
+                type="button"
+                className="label-gold shrink-0"
+                onClick={() => setOpen(open === u ? null : u)}
+              >
+                Şifre Değiştir
+              </button>
+            </div>
+            {open === u && (
+              <AccountForm
+                busy={busy}
+                fields={[{ key: 'password', label: 'Yeni şifre' }]}
+                submitLabel="Kaydet"
+                onSubmit={({ password, currentPassword }) =>
+                  run(() => setAdminPassword(currentPassword, u, password), 'Şifre güncellendi.')
+                }
+                onDelete={
+                  info.admin.users.length > 1
+                    ? ({ currentPassword }) => handleDelete(u, currentPassword)
+                    : null
+                }
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3">
+        <button
+          type="button"
+          className="text-gold border border-gold/50 rounded px-3 py-2 hover:bg-gold/10 transition-colors text-sm"
+          onClick={() => setOpen(open === 'add' ? null : 'add')}
+        >
+          + Yönetici Ekle
+        </button>
+        {open === 'add' && (
+          <AccountForm
+            busy={busy}
+            fields={[
+              { key: 'username', label: 'Kullanıcı adı', type: 'text' },
+              { key: 'password', label: 'Şifre' },
+            ]}
+            submitLabel="Ekle"
+            onSubmit={({ username, password, currentPassword }) =>
+              run(() => addAdminUser(currentPassword, username, password), 'Hesap eklendi.')
+            }
+          />
+        )}
+      </div>
+      {message && <p className="text-gold text-sm mt-3">{message}</p>}
+      <p className="text-muted text-xs mt-3">
+        Şifreler depolamada hash olarak saklanır. Şifre unutulursa depodaki
+        admin_users.json silinerek .env / varsayılan hesaplara dönülür.
+      </p>
+    </Section>
+  )
+}
+
+// Inline mini-form: the requested fields plus the mandatory "current password"
+// confirmation. Optional delete action shares the same confirmation value.
+function AccountForm({ busy, fields, submitLabel, onSubmit, onDelete }) {
+  const [values, setValues] = useState({})
+  const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }))
+  const ready =
+    fields.every((f) => String(values[f.key] || '').trim()) &&
+    String(values.currentPassword || '').trim()
+
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-3">
+      {fields.map((f) => (
+        <label key={f.key} className="flex flex-col gap-1">
+          <span className="label">{f.label}</span>
+          <input
+            type={f.type || 'password'}
+            value={values[f.key] || ''}
+            onChange={set(f.key)}
+            autoComplete="new-password"
+            className={SMALL_INPUT}
+          />
+        </label>
+      ))}
+      <label className="flex flex-col gap-1">
+        <span className="label">Mevcut şifren</span>
+        <input
+          type="password"
+          value={values.currentPassword || ''}
+          onChange={set('currentPassword')}
+          autoComplete="current-password"
+          className={SMALL_INPUT}
+        />
+      </label>
+      <button
+        type="button"
+        className="btn-lux"
+        disabled={busy || !ready}
+        onClick={() => onSubmit(values)}
+      >
+        {busy ? 'Bekleyin…' : submitLabel}
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          className="text-rose text-sm border border-rose/40 rounded px-3 py-2 hover:bg-rose/10 transition-colors"
+          disabled={busy || !String(values.currentPassword || '').trim()}
+          onClick={() => onDelete(values)}
+        >
+          Hesabı Sil
+        </button>
+      )}
+    </div>
+  )
+}
+
 // --- Configuration snapshot ----------------------------------------------------
 
 function ConfigCard({ info, onAuthError }) {
@@ -285,7 +451,6 @@ function ConfigCard({ info, onAuthError }) {
     { label: 'S3 bölgesi', value: info.storage.region },
     { label: 'Müzik anahtarı (MUSIC_KEY)', value: info.music.key },
     { label: 'Ortam', value: `${info.runtime.nodeEnv} · port ${info.runtime.port}` },
-    { label: 'Yönetici hesapları', value: info.admin.users.join(', ') },
   ]
   return (
     <Section title="Yapılandırma">

@@ -42,8 +42,12 @@ npm run dev
    time, venue (+ exact map coordinates), families, program, quotes, and under
    *Bağlantı Önizleme* the site title and public URL used for link previews.
 2. **Sistem** (system) tab — upload the invitation music (MP3) and the square
-   link-preview image, and walk the setup checklist. The tab also shows the
-   active configuration with masked secrets (per-row reveal).
+   link-preview image, manage admin accounts (add/remove, change passwords —
+   stored scrypt-hashed; every change requires your current password), and
+   walk the setup checklist. The tab also shows the active configuration with
+   masked secrets (per-row reveal). Forgotten password recovery: delete
+   `admin_users.json` from the storage to fall back to `ADMIN_USERS` / the
+   defaults.
 3. **Oyunlar** (games) tab — replace the quiz questions, "who said it" quotes
    and photo-guess rounds with your own.
 
@@ -63,7 +67,7 @@ else is admin-editable.
 | `S3_BUCKET` / `S3_REGION` | — / `eu-central-1` | Required for `s3` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | — | IAM user with access to the bucket |
 | `MUSIC_KEY` | `music/davetiye-music.mp3` | Storage key of the invitation music |
-| `ADMIN_USERS` | `esra:omer,omer:esra` | `user:pass,user:pass` admin accounts — set your own |
+| `ADMIN_USERS` | `esra:omer,omer:esra` | Initial `user:pass,user:pass` admin accounts |
 | `ADMIN_SECRET` | built-in | HMAC key for admin session tokens — set your own |
 | `VITE_API_BASE` | empty | Only when the front end is hosted apart from the API |
 

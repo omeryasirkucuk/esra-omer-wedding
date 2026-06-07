@@ -16,10 +16,16 @@ import { MUSIC_KEY, OG_IMAGE_KEY } from '../lib/objectKeys.js'
 import {
   ADMIN_SECRET,
   ADMIN_SECRET_FROM_ENV,
-  ADMIN_USERS_FROM_ENV,
-  loadAdminUsers,
   adminUsersValue,
 } from '../lib/adminAuthConfig.js'
+import {
+  usersSource,
+  listUsernames,
+  verifyCredentials,
+  setPassword,
+  addUser,
+  removeUser,
+} from '../lib/adminUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,6 +52,15 @@ const REVEALABLE = {
   ADMIN_USERS: () => adminUsersValue(),
   S3_BUCKET: () => process.env.S3_BUCKET || '',
   MUSIC_KEY: () => MUSIC_KEY,
+}
+
+// Once accounts are managed from the admin, the env/default ADMIN_USERS value
+// is stale and the stored passwords only exist as hashes — show usernames.
+async function revealValue(key) {
+  if (key === 'ADMIN_USERS' && (await usersSource()) === 'stored') {
+    return `${(await listUsernames()).join(', ')} (şifreler hash olarak saklanır)`
+  }
+  return REVEALABLE[key]()
 }
 
 // Bundled music fallback the /api/music route serves when nothing is uploaded.
@@ -83,19 +98,21 @@ adminSystemRouter.get('/system', async (_req, res, next) => {
       },
       ogImage: siteAssets?.ogImage || null,
       admin: {
-        users: loadAdminUsers().map((u) => u.u),
-        usersFromEnv: ADMIN_USERS_FROM_ENV,
+        users: await listUsernames(),
+        // 'stored' = managed from this tab, 'env' = ADMIN_USERS, 'default'.
+        usersSource: await usersSource(),
         secretFromEnv: ADMIN_SECRET_FROM_ENV,
       },
       runtime: {
         nodeEnv: process.env.NODE_ENV || 'development',
         port: Number(process.env.PORT || process.env.API_PORT || 8787),
       },
-      secrets: Object.entries(REVEALABLE).map(([key, value]) => ({
-        key,
-        set: Boolean(value()),
-        preview: mask(value()),
-      })),
+      secrets: await Promise.all(
+        Object.keys(REVEALABLE).map(async (key) => {
+          const value = await revealValue(key)
+          return { key, set: Boolean(value), preview: mask(value) }
+        }),
+      ),
     })
   } catch (e) {
     next(e)
@@ -104,11 +121,68 @@ adminSystemRouter.get('/system', async (_req, res, next) => {
 
 // Explicit plaintext reveal for one allow-listed key (the table shows masked
 // values by default; each row has its own "show" action).
-adminSystemRouter.post('/system/reveal', (req, res) => {
-  const { key } = req.body || {}
-  const getter = REVEALABLE[key]
-  if (!getter) return res.status(400).json({ error: 'unknown key' })
-  res.json({ key, value: getter() })
+adminSystemRouter.post('/system/reveal', async (req, res, next) => {
+  try {
+    const { key } = req.body || {}
+    if (!REVEALABLE[key]) return res.status(400).json({ error: 'unknown key' })
+    res.json({ key, value: await revealValue(key) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// --- Admin accounts -----------------------------------------------------------
+// Managed accounts are stored scrypt-hashed (lib/adminUsers.js). Every
+// mutation requires the requesting admin's CURRENT password, so a stolen
+// session token alone cannot rotate the credentials and lock the couple out.
+
+async function requireCurrentPassword(req, res) {
+  const ok = await verifyCredentials(req.adminUser, String(req.body?.currentPassword || ''))
+  if (!ok) {
+    res.status(403).json({ error: 'current password incorrect' })
+    return false
+  }
+  return true
+}
+
+adminSystemRouter.post('/admin-users', async (req, res, next) => {
+  try {
+    if (!(await requireCurrentPassword(req, res))) return
+    const { username, password } = req.body || {}
+    if (!String(password || '').trim()) return res.status(400).json({ error: 'password required' })
+    const result = await addUser(username, password)
+    if (result.error) return res.status(400).json(result)
+    res.status(201).json({ ok: true, users: await listUsernames() })
+  } catch (e) {
+    next(e)
+  }
+})
+
+adminSystemRouter.post('/admin-users/password', async (req, res, next) => {
+  try {
+    if (!(await requireCurrentPassword(req, res))) return
+    const { username, password } = req.body || {}
+    if (!String(password || '').trim()) return res.status(400).json({ error: 'password required' })
+    const result = await setPassword(username, password)
+    if (result.error) return res.status(400).json(result)
+    res.json({ ok: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+adminSystemRouter.post('/admin-users/delete', async (req, res, next) => {
+  try {
+    if (!(await requireCurrentPassword(req, res))) return
+    const { username } = req.body || {}
+    // Removing yourself would revoke the very session making the request.
+    if (username === req.adminUser) return res.status(400).json({ error: 'cannot remove yourself' })
+    const result = await removeUser(username)
+    if (result.error) return res.status(400).json(result)
+    res.json({ ok: true, users: await listUsernames() })
+  } catch (e) {
+    next(e)
+  }
 })
 
 // --- Invitation music -------------------------------------------------------

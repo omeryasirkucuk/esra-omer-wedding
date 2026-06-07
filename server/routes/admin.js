@@ -7,7 +7,8 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
-import { ADMIN_SECRET, loadAdminUsers } from '../lib/adminAuthConfig.js'
+import { ADMIN_SECRET } from '../lib/adminAuthConfig.js'
+import { verifyCredentials, userExists } from '../lib/adminUsers.js'
 import { adminSystemRouter } from './adminSystem.js'
 
 const photoUpload = multer({
@@ -15,12 +16,11 @@ const photoUpload = multer({
   limits: { fileSize: 200 * 1024 * 1024 },
 })
 
-// Admin API for the couple. Two default accounts (overridable via ADMIN_USERS
-// = "user:pass,user:pass"). Auth is a stateless HMAC bearer token — enough for
-// a private, single-event dashboard. Credential config lives in
-// lib/adminAuthConfig.js, shared with the System tab endpoints.
+// Admin API for the couple. Accounts come from lib/adminUsers.js: the
+// storage-backed set managed in the System tab when present, else ADMIN_USERS
+// env / the built-in defaults. Auth is a stateless HMAC bearer token — enough
+// for a private, single-event dashboard.
 const SECRET = ADMIN_SECRET
-const USERS = loadAdminUsers()
 
 function tokenFor(username) {
   const sig = crypto.createHmac('sha256', SECRET).update(username).digest('hex')
@@ -45,21 +45,27 @@ function verify(token) {
 
 export const adminRouter = Router()
 
-adminRouter.post('/login', (req, res) => {
-  const { username, password } = req.body || {}
-  const found = USERS.find((x) => x.u === username && x.p === password)
-  if (!found) return res.status(401).json({ error: 'invalid credentials' })
-  res.json({ token: tokenFor(username), username })
+adminRouter.post('/login', async (req, res, next) => {
+  try {
+    const { username, password } = req.body || {}
+    const ok = await verifyCredentials(username, password)
+    if (!ok) return res.status(401).json({ error: 'invalid credentials' })
+    res.json({ token: tokenFor(username), username })
+  } catch (e) {
+    next(e)
+  }
 })
 
 // Everything below requires a valid token. Normally the Bearer header carries
 // it, but streamed file downloads are plain browser navigations that can't set
 // headers, so a `?token=` query fallback is accepted as well.
-adminRouter.use((req, res, next) => {
+adminRouter.use(async (req, res, next) => {
   const headerToken = (req.headers.authorization || '').replace(/^Bearer /, '')
   const token = headerToken || (typeof req.query.token === 'string' ? req.query.token : '')
   const user = verify(token)
-  if (!user) return res.status(401).json({ error: 'unauthorized' })
+  // The token also has to name a still-existing account, so removing an admin
+  // (or replacing the account set) revokes that admin's sessions.
+  if (!user || !(await userExists(user))) return res.status(401).json({ error: 'unauthorized' })
   req.adminUser = user
   next()
 })
