@@ -2,11 +2,12 @@
 // Shows live totals at the top, a compact "add attendee" form, and per-row
 // inline editing of adult/child counts plus delete.
 import { useEffect, useMemo, useState } from 'react'
-import { getRsvps, addRsvp, updateRsvp, deleteRsvp } from '../adminApi'
+import { getRsvps, addRsvp, updateRsvp, deleteRsvp, getSiteContent } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
 import PanelControls from '../PanelControls.jsx'
 import { matchesQuery, compareNames, compareNewest } from '../search.js'
+import { GROUP_OPTIONS, sideOptions, TagSelect } from '../rsvpTags.jsx'
 
 // Ordering options + comparators for the RSVP list.
 const RSVP_SORTS = [
@@ -33,11 +34,13 @@ export default function Rsvps({ onAuthError }) {
   const [rsvps, setRsvps] = useState(null)
   const [error, setError] = useState(false)
   // Add-form state, kept controlled so we can reset it after a successful add.
-  const [form, setForm] = useState({ firstName: '', lastName: '', guests: 1, children: 0 })
+  const [form, setForm] = useState({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '' })
   const [adding, setAdding] = useState(false)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('recent')
+  // Couple's names for the "side" tag labels (fall back to generic words).
+  const [couple, setCouple] = useState({ bride: '', groom: '' })
 
   useEffect(() => {
     let alive = true
@@ -47,10 +50,15 @@ export default function Rsvps({ onAuthError }) {
         if (e.name === 'AuthError') onAuthError()
         else if (alive) setError(true)
       })
+    getSiteContent()
+      .then((d) => alive && setCouple({ bride: d?.bride || '', groom: d?.groom || '' }))
+      .catch(() => {})
     return () => {
       alive = false
     }
   }, [onAuthError])
+
+  const sideOpts = useMemo(() => sideOptions(couple.bride, couple.groom), [couple])
 
   // Live totals — recomputed whenever the list changes.
   const totals = useMemo(() => {
@@ -92,9 +100,11 @@ export default function Rsvps({ onAuthError }) {
         lastName,
         guests: toCount(form.guests),
         children: toCount(form.children),
+        group: form.group,
+        side: form.side,
       })
       setRsvps((prev) => [created, ...(prev || [])])
-      setForm({ firstName: '', lastName: '', guests: 1, children: 0 })
+      setForm({ firstName: '', lastName: '', guests: 1, children: 0, group: '', side: '' })
     } catch (err) {
       handleError(err, () => setFormError('Eklenemedi, tekrar deneyin'))
     } finally {
@@ -111,6 +121,17 @@ export default function Rsvps({ onAuthError }) {
       setRsvps((prev) =>
         (prev || []).map((r) => (r.id === entry.id ? { ...r, ...updated } : r)),
       )
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  // Persist a tag change (group/side) immediately; optimistic local update.
+  async function handleTagChange(entry, field, value) {
+    if ((entry[field] || '') === value) return
+    setRsvps((prev) => (prev || []).map((r) => (r.id === entry.id ? { ...r, [field]: value } : r)))
+    try {
+      await updateRsvp({ id: entry.id, [field]: value })
     } catch (err) {
       handleError(err)
     }
@@ -179,6 +200,28 @@ export default function Rsvps({ onAuthError }) {
             className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
           />
         </Field>
+        <Field label="Grup" className="flex-1 min-w-[7rem]">
+          <select
+            value={form.group}
+            onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+          >
+            {GROUP_OPTIONS.map((o) => (
+              <option key={o.value || 'none'} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Yakınlık" className="flex-1 min-w-[7rem]">
+          <select
+            value={form.side}
+            onChange={(e) => setForm((f) => ({ ...f, side: e.target.value }))}
+            className="w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold"
+          >
+            {sideOpts.map((o) => (
+              <option key={o.value || 'none'} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
         <button type="submit" className="btn-lux w-full sm:w-auto" disabled={adding}>
           {adding ? 'Ekleniyor…' : 'Ekle'}
         </button>
@@ -217,26 +260,43 @@ export default function Rsvps({ onAuthError }) {
                 {/* Mobile: name on the left, delete pinned to the right of the
                     same line. From sm up the delete button moves to its grid
                     cell via the `sm:contents` wrapper below. */}
-                <div className="flex items-center justify-between gap-2 sm:block">
-                  <span className="font-display text-lg text-primary flex items-center gap-2 min-w-0">
-                    <span className="truncate">
-                      {r.firstName} {r.lastName}
-                    </span>
-                    {r.addedByAdmin && (
-                      <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
-                        elle eklendi
+                <div className="sm:block">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-display text-lg text-primary flex items-center gap-2 min-w-0">
+                      <span className="truncate">
+                        {r.firstName} {r.lastName}
                       </span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(r)}
-                    aria-label="Sil"
-                    title="Sil"
-                    className="shrink-0 text-muted hover:text-rose transition-colors sm:hidden"
-                  >
-                    🗑
-                  </button>
+                      {r.addedByAdmin && (
+                        <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
+                          elle eklendi
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(r)}
+                      aria-label="Sil"
+                      title="Sil"
+                      className="shrink-0 text-muted hover:text-rose transition-colors sm:hidden"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                  {/* Tag chips: social group + which side of the couple. */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <TagSelect
+                      value={r.group || ''}
+                      onChange={(v) => handleTagChange(r, 'group', v)}
+                      options={GROUP_OPTIONS}
+                      tone="group"
+                    />
+                    <TagSelect
+                      value={r.side || ''}
+                      onChange={(v) => handleTagChange(r, 'side', v)}
+                      options={sideOpts}
+                      tone="side"
+                    />
+                  </div>
                 </div>
                 {/* Counts + date. On mobile they wrap onto their own line(s);
                     from sm up `sm:contents` drops them into the grid columns. */}

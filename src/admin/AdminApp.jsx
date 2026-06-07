@@ -26,7 +26,7 @@ function guestHomeHref() {
 const TABS = [
   { id: 'overview', label: 'Özet', Panel: Overview },
   { id: 'site', label: 'Düğün Bilgileri', Panel: SiteEditor },
-  { id: 'rsvps', label: 'Katılımlar', Panel: Rsvps },
+  { id: 'rsvps', label: 'Katılımcılar', Panel: Rsvps },
   { id: 'albums', label: 'Albüm', Panel: Albums },
   { id: 'posts', label: 'Pano', Panel: Posts },
   { id: 'games', label: 'Oyunlar', Panel: GamesEditor },

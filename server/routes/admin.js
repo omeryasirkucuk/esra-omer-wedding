@@ -108,9 +108,16 @@ adminRouter.get('/rsvps', async (req, res, next) => {
 })
 
 // Add an attendee manually (admin manages the exact headcount).
+// Allowed attendee tags. `group` is the social circle; `side` is which of the
+// couple they belong to (gelin = bride, damat = groom, cift = both). Anything
+// outside these sets (including '') is stored as '' = untagged.
+const RSVP_GROUPS = new Set(['aile', 'arkadas', 'akraba'])
+const RSVP_SIDES = new Set(['gelin', 'damat', 'cift'])
+const cleanTag = (value, allowed) => (allowed.has(value) ? value : '')
+
 adminRouter.post('/rsvps', async (req, res, next) => {
   try {
-    const { firstName, lastName, guests, children, attending } = req.body || {}
+    const { firstName, lastName, guests, children, attending, group, side } = req.body || {}
     // Surname is optional (matches the guest-facing identity model); require at
     // least one of the two so an entry always has something to show.
     const first = String(firstName || '').trim()
@@ -124,6 +131,8 @@ adminRouter.post('/rsvps', async (req, res, next) => {
       attending: attending === false ? false : true,
       guests: Number(guests) || 1,
       children: Number(children) || 0,
+      group: cleanTag(group, RSVP_GROUPS),
+      side: cleanTag(side, RSVP_SIDES),
       createdAt: new Date().toISOString(),
       addedByAdmin: true,
     }
@@ -138,7 +147,7 @@ adminRouter.post('/rsvps', async (req, res, next) => {
 // Edit an attendee's details / counts.
 adminRouter.post('/rsvps/update', async (req, res, next) => {
   try {
-    const { id, firstName, lastName, guests, children, attending } = req.body || {}
+    const { id, firstName, lastName, guests, children, attending, group, side } = req.body || {}
     const rsvps = await storage.getCollection('rsvp')
     const entry = rsvps.find((r) => r.id === id)
     if (!entry) return res.status(404).json({ error: 'not found' })
@@ -147,6 +156,8 @@ adminRouter.post('/rsvps/update', async (req, res, next) => {
     if (guests !== undefined) entry.guests = Number(guests) || 0
     if (children !== undefined) entry.children = Number(children) || 0
     if (attending !== undefined) entry.attending = !!attending
+    if (group !== undefined) entry.group = cleanTag(group, RSVP_GROUPS)
+    if (side !== undefined) entry.side = cleanTag(side, RSVP_SIDES)
     await storage.saveCollection('rsvp', rsvps)
     res.json(entry)
   } catch (e) {
