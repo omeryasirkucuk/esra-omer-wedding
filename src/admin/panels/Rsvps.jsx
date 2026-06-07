@@ -39,6 +39,8 @@ export default function Rsvps({ onAuthError }) {
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('recent')
+  const [groupFilter, setGroupFilter] = useState('all')
+  const [sideFilter, setSideFilter] = useState('all')
   // Couple's names for the "side" tag labels (fall back to generic words).
   const [couple, setCouple] = useState({ bride: '', groom: '' })
 
@@ -59,6 +61,9 @@ export default function Rsvps({ onAuthError }) {
   }, [onAuthError])
 
   const sideOpts = useMemo(() => sideOptions(couple.bride, couple.groom), [couple])
+  // Filter-pill choices reuse the tag metadata; "all" leads each row.
+  const groupFilters = [{ value: 'all', label: 'Tümü' }, ...GROUP_OPTIONS.filter((o) => o.value)]
+  const sideFilters = [{ value: 'all', label: 'Tümü' }, ...sideOpts.filter((o) => o.value)]
 
   // Live totals — recomputed whenever the list changes.
   const totals = useMemo(() => {
@@ -68,13 +73,15 @@ export default function Rsvps({ onAuthError }) {
     return { entries: list.length, adults, children, people: adults + children }
   }, [rsvps])
 
-  // Name search (case- and accent-insensitive) then the chosen ordering.
+  // Group/side tag filters, then name search, then the chosen ordering.
   const filtered = useMemo(
     () =>
       (rsvps || [])
+        .filter((r) => groupFilter === 'all' || (r.group || '') === groupFilter)
+        .filter((r) => sideFilter === 'all' || (r.side || '') === sideFilter)
         .filter((r) => matchesQuery(query, r.firstName, r.lastName))
         .sort(rsvpComparators[sort] || rsvpComparators.recent),
-    [rsvps, query, sort],
+    [rsvps, query, sort, groupFilter, sideFilter],
   )
 
   // Surface a 401 as a session drop; everything else is a soft inline error.
@@ -236,6 +243,12 @@ export default function Rsvps({ onAuthError }) {
         sortOptions={RSVP_SORTS}
       />
 
+      {/* Tag filters: by social group and by side of the couple. */}
+      <div className="flex flex-col gap-2 mb-3">
+        <FilterRow label="Grup" value={groupFilter} onChange={setGroupFilter} options={groupFilters} />
+        <FilterRow label="Yakınlık" value={sideFilter} onChange={setSideFilter} options={sideFilters} />
+      </div>
+
       {rsvps.length === 0 ? (
         <p className="text-muted text-center py-10">Henüz katılım yok</p>
       ) : filtered.length === 0 ? (
@@ -362,6 +375,29 @@ function Stat({ label, value, highlight }) {
       >
         {value}
       </p>
+    </div>
+  )
+}
+
+// One labelled row of filter pills. The active value gets a gold fill.
+function FilterRow({ label, value, onChange, options }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="label w-16 shrink-0">{label}</span>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`rounded-full px-3 py-1 text-sm border transition ${
+            value === o.value
+              ? 'bg-gold text-surface border-gold'
+              : 'bg-bg text-muted border-line hover:border-gold'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   )
 }
