@@ -12,6 +12,7 @@ import Albums from './panels/Albums'
 import Posts from './panels/Posts'
 import GamesEditor from './panels/GamesEditor'
 import Scores from './panels/Scores'
+import QrGenerator from './panels/QrGenerator'
 import SystemPanel from './panels/SystemPanel'
 
 // Link back to the guest site. On admin.esraomer.com this strips the "admin."
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'posts', label: 'Pano', Panel: Posts },
   { id: 'games', label: 'Oyunlar', Panel: GamesEditor },
   { id: 'scores', label: 'Skorlar', Panel: Scores },
+  { id: 'qr', label: 'QR Oluştur', Panel: QrGenerator },
   { id: 'system', label: 'Sistem', Panel: SystemPanel },
 ]
 

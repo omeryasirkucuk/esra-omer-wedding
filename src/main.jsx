@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import AdminApp from './admin/AdminApp.jsx'
+import './theme/fonts.css'
 import './index.css'
 
 // The same build serves both surfaces. The admin dashboard loads on the

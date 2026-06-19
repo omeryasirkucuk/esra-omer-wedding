@@ -183,3 +183,36 @@ export const deleteMusic = () => request('DELETE', '/api/admin/music')
 // Link-preview (OG) image shown by WhatsApp/social when the site is shared.
 export const uploadOgImage = (file) => uploadFile('/api/admin/og-image', file)
 export const deleteOgImage = () => request('DELETE', '/api/admin/og-image')
+
+// QR posters ("QR Oluştur" tab). The PNG is rendered client-side and uploaded
+// here; the server stores it and returns the gallery entry. Saved posters stay
+// until the couple deletes one.
+export const getQrPosters = () => get('/api/admin/qr-posters')
+
+// Remembered generator form values (titles, address, date, …) so the couple
+// doesn't retype them. Shape is client-defined: { table, guest, entrance }.
+export const getQrContent = () => get('/api/admin/qr-content')
+export const saveQrContent = (payload) => put('/api/admin/qr-content', payload)
+
+// `blob` is the rendered PNG; `type` is 'table' | 'entrance'; `label` is a short
+// human title for the gallery. Returns the saved entry { id, type, label, url, … }.
+export async function uploadQrPoster(blob, { type, label }) {
+  const token = getToken()
+  const form = new FormData()
+  form.append('file', blob, 'poster.png')
+  form.append('type', type)
+  form.append('label', label || '')
+  const res = await fetch(`${BASE}/api/admin/qr-posters`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  if (res.status === 401) {
+    logout()
+    throw new AuthError()
+  }
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+  return res.json()
+}
+
+export const deleteQrPoster = (id) => request('DELETE', `/api/admin/qr-posters/${id}`)

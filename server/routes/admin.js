@@ -10,6 +10,7 @@ import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { ADMIN_SECRET } from '../lib/adminAuthConfig.js'
 import { verifyCredentials, userExists } from '../lib/adminUsers.js'
 import { adminSystemRouter } from './adminSystem.js'
+import { adminQrRouter } from './adminQr.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -73,6 +74,9 @@ adminRouter.use(async (req, res, next) => {
 // System tab endpoints (config snapshot, secret reveal, music/OG uploads).
 // Mounted after the auth gate so every route inherits it.
 adminRouter.use(adminSystemRouter)
+
+// "QR Oluştur" tab endpoints (generate/list/delete printable QR posters).
+adminRouter.use(adminQrRouter)
 
 adminRouter.get('/overview', async (req, res, next) => {
   try {
