@@ -24,6 +24,58 @@ function downloadDataUrl(dataUrl, fileName) {
   a.remove()
 }
 
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+// Render the poster to a print-resolution PNG data URL.
+//
+// html-to-image rasterises the DOM through an SVG <foreignObject>, which hangs
+// on embedded raster <img> elements (the bought couple/dancer illustrations).
+// So we capture the vector layer with the <img>s excluded, then draw each
+// illustration back on top onto a canvas at the same scale. Designs without
+// illustrations skip the second pass entirely.
+async function renderPoster(node, pixelRatio) {
+  const w = node.offsetWidth
+  const h = node.offsetHeight
+  // Direct-child <img> overlays, in the node's own (unscaled) coordinate space.
+  const overlays = [...node.querySelectorAll('img')].map((im) => ({
+    src: im.currentSrc || im.src,
+    x: im.offsetLeft,
+    y: im.offsetTop,
+    w: im.offsetWidth,
+    h: im.offsetHeight,
+  }))
+
+  const vectorUrl = await toPng(node, {
+    width: w,
+    height: h,
+    pixelRatio,
+    cacheBust: true,
+    backgroundColor: IVORY,
+    filter: (n) => n.tagName !== 'IMG',
+  })
+  if (overlays.length === 0) return vectorUrl
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(w * pixelRatio)
+  canvas.height = Math.round(h * pixelRatio)
+  const ctx = canvas.getContext('2d')
+  const base = await loadImage(vectorUrl)
+  ctx.drawImage(base, 0, 0, canvas.width, canvas.height)
+  for (const o of overlays) {
+    const art = await loadImage(o.src)
+    ctx.drawImage(art, o.x * pixelRatio, o.y * pixelRatio, o.w * pixelRatio, o.h * pixelRatio)
+  }
+  return canvas.toDataURL('image/png')
+}
+
 export function usePosterExport() {
   const [exporting, setExporting] = useState(false)
 
@@ -38,16 +90,9 @@ export function usePosterExport() {
     try {
       // Fonts must be ready before capture or html-to-image embeds fallbacks.
       if (document.fonts?.ready) await document.fonts.ready
-      // Capture the node at its real rendered box; pixelRatio multiplies it up to
-      // a large, print-ready PNG (e.g. base 640px × 6 ≈ 3840px wide — fine for a
-      // 70×100 large-format print).
-      const dataUrl = await toPng(node, {
-        width: node.offsetWidth,
-        height: node.offsetHeight,
-        pixelRatio,
-        cacheBust: true,
-        backgroundColor: IVORY,
-      })
+      // pixelRatio multiplies the modest base px up to a print-ready PNG (e.g.
+      // base 640px × 7 ≈ 4480px wide — fine for a 70×100 large-format print).
+      const dataUrl = await renderPoster(node, pixelRatio)
       downloadDataUrl(dataUrl, fileName)
       // Persist the very same PNG to the gallery.
       const blob = await (await fetch(dataUrl)).blob()
