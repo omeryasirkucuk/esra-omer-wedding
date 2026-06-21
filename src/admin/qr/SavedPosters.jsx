@@ -1,7 +1,7 @@
 // Gallery of every poster the couple has generated. Saved posters persist (in
 // S3 in production) and stay here until explicitly deleted — each one is
 // re-downloadable and removable via an in-page confirm dialog.
-import { mediaUrl, fileDownloadUrl, deleteQrPoster } from '../adminApi'
+import { posterThumbUrl, fileDownloadUrl, deleteQrPoster } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 
 const TYPE_LABEL = { table: 'Masa Kartı', guest: 'Davetli Kartı', entrance: 'Giriş Afişi' }
@@ -57,10 +57,14 @@ export default function SavedPosters({ posters, onDelete, onAuthError }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       {posters.map((p) => (
-        <div key={p.id} className="card-soft p-3 flex flex-col gap-2">
+        <div
+          key={p.id}
+          className="card-soft p-3 flex flex-col gap-2"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '320px' }}
+        >
           <div className="rounded-lg overflow-hidden border border-[#e2d6b8] bg-bg">
             <img
-              src={mediaUrl(p.url)}
+              src={posterThumbUrl(p.url)}
               alt={p.label || TYPE_LABEL[p.type]}
               loading="lazy"
               className="w-full aspect-[3/4] object-contain"

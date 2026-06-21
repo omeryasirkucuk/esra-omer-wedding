@@ -27,6 +27,14 @@ export default function PosterStage({ width, scale, children }) {
         overflow: 'hidden',
         boxShadow: '0 10px 30px rgba(47,62,77,0.18)',
         borderRadius: 4,
+        // The posters lean on SVG watercolor filters and multiply blends, which
+        // re-rasterise on every frame while the page scrolls unless they live on
+        // their own compositor layer. Isolate + GPU-promote each stage so its
+        // filtered/blended output is rasterised once and merely translated on
+        // scroll — the look is unchanged, the export still reads the same node.
+        contain: 'paint',
+        isolation: 'isolate',
+        transform: 'translateZ(0)',
       }}
     >
       <div

@@ -72,7 +72,7 @@ function MeadowDetail({ w, h }) {
   )
 }
 
-const Meadow = forwardRef(function Meadow({ welcome, names, dateText, orientation = 'portrait', thumb = false }, ref) {
+const Meadow = forwardRef(function Meadow({ welcome, names, dateText, orientation = 'portrait', thumb = false, bg }, ref) {
   const dims = ENTRANCE_DIMS[orientation] || ENTRANCE_DIMS.portrait
   const landscape = orientation === 'landscape'
   const t = landscape
@@ -87,7 +87,7 @@ const Meadow = forwardRef(function Meadow({ welcome, names, dateText, orientatio
         width: dims.width,
         minHeight: dims.minHeight,
         boxSizing: 'border-box',
-        background: 'linear-gradient(#cfe1e8 0%, #d9e6df 38%, #e9eedd 54%)',
+        background: bg || 'linear-gradient(#cfe1e8 0%, #d9e6df 38%, #e9eedd 54%)',
         color: C.ink,
         overflow: 'hidden',
       }}

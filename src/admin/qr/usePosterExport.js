@@ -34,6 +34,30 @@ function loadImage(src) {
   })
 }
 
+// Wrap the print-resolution PNG in a single-page PDF sized to the poster at
+// 300 DPI, so the print shop gets a high-res, physically-sized file (e.g. a
+// 4480px-wide entrance sign → a ~379 mm page that scales cleanly up to 70×100).
+// jsPDF is loaded on demand so it never weighs down the PNG path or the bundle.
+async function downloadPdf(pngDataUrl, fileName) {
+  const { jsPDF } = await import('jspdf')
+  const img = await loadImage(pngDataUrl)
+  const DPI = 300
+  const wmm = (img.naturalWidth / DPI) * 25.4
+  const hmm = (img.naturalHeight / DPI) * 25.4
+  const pdf = new jsPDF({
+    unit: 'mm',
+    format: [wmm, hmm],
+    orientation: wmm > hmm ? 'landscape' : 'portrait',
+    compress: true,
+  })
+  // Read the real page box back (jsPDF may normalise the custom format) and fill
+  // it exactly, so the image always covers the page regardless of orientation.
+  const pw = pdf.internal.pageSize.getWidth()
+  const ph = pdf.internal.pageSize.getHeight()
+  pdf.addImage(pngDataUrl, 'PNG', 0, 0, pw, ph, undefined, 'FAST')
+  pdf.save(fileName)
+}
+
 // Render the poster to a print-resolution PNG data URL.
 //
 // html-to-image rasterises the DOM through an SVG <foreignObject>, which hangs
@@ -41,7 +65,7 @@ function loadImage(src) {
 // So we capture the vector layer with the <img>s excluded, then draw each
 // illustration back on top onto a canvas at the same scale. Designs without
 // illustrations skip the second pass entirely.
-async function renderPoster(node, pixelRatio) {
+async function renderPoster(node, pixelRatio, backgroundColor) {
   const w = node.offsetWidth
   const h = node.offsetHeight
   // Direct-child <img> overlays, in the node's own (unscaled) coordinate space.
@@ -58,7 +82,7 @@ async function renderPoster(node, pixelRatio) {
     height: h,
     pixelRatio,
     cacheBust: true,
-    backgroundColor: IVORY,
+    backgroundColor: backgroundColor || IVORY,
     filter: (n) => n.tagName !== 'IMG',
   })
   if (overlays.length === 0) return vectorUrl
@@ -80,11 +104,13 @@ export function usePosterExport() {
   const [exporting, setExporting] = useState(false)
 
   // node: the poster element (rendered at base size). type: 'table' | 'entrance'.
-  // label: short gallery title. fileName: download name. pixelRatio: scales the
-  // modest base px up to print resolution (most content is vector, so it stays
-  // crisp). onSaved: receives the persisted gallery entry. onAuthError: bubbles a
-  // stale-session 401 up.
-  async function exportPoster(node, { type, label, fileName, pixelRatio = 5, onSaved, onAuthError }) {
+  // label: short gallery title. fileName: download name (always ends ".png"; the
+  // extension is swapped per format). pixelRatio: scales the modest base px up to
+  // print resolution (most content is vector, so it stays crisp). format: 'png'
+  // downloads + archives the PNG; 'pdf' downloads a high-res print PDF only (the
+  // gallery stays image-based, so the PNG action owns the archive). onSaved:
+  // receives the persisted gallery entry. onAuthError: bubbles a stale-session 401.
+  async function exportPoster(node, { type, label, fileName, pixelRatio = 5, backgroundColor, format = 'png', onSaved, onAuthError }) {
     if (!node || exporting) return
     setExporting(true)
     try {
@@ -92,15 +118,22 @@ export function usePosterExport() {
       if (document.fonts?.ready) await document.fonts.ready
       // pixelRatio multiplies the modest base px up to a print-ready PNG (e.g.
       // base 640px × 7 ≈ 4480px wide — fine for a 70×100 large-format print).
-      const dataUrl = await renderPoster(node, pixelRatio)
-      downloadDataUrl(dataUrl, fileName)
+      const dataUrl = await renderPoster(node, pixelRatio, backgroundColor)
+      const name = String(fileName).replace(/\.png$/i, format === 'pdf' ? '.pdf' : '.png')
+
+      if (format === 'pdf') {
+        await downloadPdf(dataUrl, name)
+        return
+      }
+
+      downloadDataUrl(dataUrl, name)
       // Persist the very same PNG to the gallery.
       const blob = await (await fetch(dataUrl)).blob()
       const entry = await uploadQrPoster(blob, { type, label })
       onSaved?.(entry)
     } catch (err) {
       if (err?.name === 'AuthError') onAuthError?.()
-      else await alertDialog('Görsel oluşturulamadı, tekrar deneyin.')
+      else await alertDialog('Dosya oluşturulamadı, tekrar deneyin.')
     } finally {
       setExporting(false)
     }

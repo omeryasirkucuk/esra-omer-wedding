@@ -6,6 +6,7 @@ import GuestCardPoster, { GUEST_DIMS } from './posters/GuestCardPoster'
 import PosterStage from './PosterStage'
 import { TextField, Segmented } from './Field'
 import { usePosterExport } from './usePosterExport'
+import ExportButtons from './ExportButtons'
 
 const DEFAULT_WELCOME = 'HOŞ GELDİNİZ'
 const DEFAULT_GROUP = 'Aile'
@@ -47,12 +48,13 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
   const dims = GUEST_DIMS[orientation]
   const scale = PREVIEW_W / dims.width
 
-  function handleExport() {
+  function handleExport(format) {
     exportPoster(posterRef.current, {
       type: 'guest',
       label: `Davetli Kartı — ${group}`,
       fileName: `davetli-karti-${orientation === 'landscape' ? 'yatay' : 'dikey'}-${fileSlug(group)}.png`,
       pixelRatio: EXPORT_RATIO,
+      format,
       onSaved,
       onAuthError,
     })
@@ -75,9 +77,7 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
         <TextField label="Alt yazı" value={welcome} onChange={setWelcome} />
         <TextField label="Masa / grup adı" value={group} onChange={setGroup} placeholder="Örn. P&G, Üniversite, Aile" />
 
-        <button type="button" className="btn-lux w-full sm:w-auto" onClick={handleExport} disabled={exporting}>
-          {exporting ? 'Oluşturuluyor…' : 'PNG İndir ve Kaydet'}
-        </button>
+        <ExportButtons exporting={exporting} onExport={handleExport} />
       </div>
 
       {/* Live preview */}

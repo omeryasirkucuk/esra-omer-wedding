@@ -101,7 +101,7 @@ function Visual({ photoUrl, medallion, archW, archH }) {
 }
 
 const EntrancePoster = forwardRef(function EntrancePoster(
-  { eyebrow, names, headline, description, qrUrl, photoUrl, orientation = 'portrait' },
+  { eyebrow, names, headline, description, qrUrl, photoUrl, orientation = 'portrait', bg },
   ref,
 ) {
   const dims = ENTRANCE_DIMS[orientation] || ENTRANCE_DIMS.portrait
@@ -119,7 +119,7 @@ const EntrancePoster = forwardRef(function EntrancePoster(
           width: dims.width,
           minHeight: dims.minHeight,
           boxSizing: 'border-box',
-          background: C.ivory,
+          background: bg || C.ivory,
           color: C.ink,
           display: 'flex',
           alignItems: 'stretch',
@@ -160,7 +160,7 @@ const EntrancePoster = forwardRef(function EntrancePoster(
         width: dims.width,
         minHeight: dims.minHeight,
         boxSizing: 'border-box',
-        background: C.ivory,
+        background: bg || C.ivory,
         color: C.ink,
         display: 'flex',
         flexDirection: 'column',

@@ -62,7 +62,7 @@ function CloudDetail({ w, h }) {
   )
 }
 
-const Clouds = forwardRef(function Clouds({ welcome, names, dateText, orientation = 'portrait', thumb = false }, ref) {
+const Clouds = forwardRef(function Clouds({ welcome, names, dateText, orientation = 'portrait', thumb = false, bg }, ref) {
   const dims = ENTRANCE_DIMS[orientation] || ENTRANCE_DIMS.portrait
   const landscape = orientation === 'landscape'
   const t = landscape
@@ -77,7 +77,7 @@ const Clouds = forwardRef(function Clouds({ welcome, names, dateText, orientatio
         width: dims.width,
         minHeight: dims.minHeight,
         boxSizing: 'border-box',
-        background: 'linear-gradient(#bdd5e1 0%, #cfe0e6 40%, #e7eddf 74%)',
+        background: bg || 'linear-gradient(#bdd5e1 0%, #cfe0e6 40%, #e7eddf 74%)',
         color: C.ink,
         overflow: 'hidden',
       }}

@@ -33,6 +33,17 @@ export function mediaUrl(path) {
   return `${BASE}${path}`
 }
 
+// Small cached-thumbnail URL for a stored poster, parsed from its "/media/<slug>/<file>"
+// path. The gallery shows these tiny WebPs instead of the multi-megabyte full-res
+// export PNGs (the download keeps the original). Same endpoint the album uses.
+export function posterThumbUrl(path) {
+  const parts = String(path || '').split('/') // ["", "media", "<slug>", "<file>"]
+  const slug = parts[2] || ''
+  const file = parts[3] || ''
+  if (!slug || !file) return mediaUrl(path)
+  return `${BASE}/api/uploads/thumb?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
+}
+
 async function request(method, path, body) {
   const token = getToken()
   const headers = {}

@@ -7,6 +7,7 @@ import TableCardPoster, { TABLE_DIMS } from './posters/TableCardPoster'
 import PosterStage from './PosterStage'
 import { TextField, TextAreaField, Segmented } from './Field'
 import { usePosterExport } from './usePosterExport'
+import ExportButtons from './ExportButtons'
 
 const DEFAULT_TAGLINE = 'Birlikte güzel anılar biriktirelim'
 const DEFAULT_INSTRUCTION =
@@ -54,12 +55,13 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
   const dims = TABLE_DIMS[orientation]
   const scale = PREVIEW_W / dims.width
 
-  function handleExport() {
+  function handleExport(format) {
     exportPoster(posterRef.current, {
       type: 'table',
       label: `Masa Kartı — ${names}`,
       fileName: `masa-karti-${orientation === 'landscape' ? 'yatay' : 'dikey'}-${fileSlug(names)}.png`,
       pixelRatio: EXPORT_RATIO,
+      format,
       onSaved,
       onAuthError,
     })
@@ -93,9 +95,7 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
           ]}
         />
 
-        <button type="button" className="btn-lux w-full sm:w-auto" onClick={handleExport} disabled={exporting}>
-          {exporting ? 'Oluşturuluyor…' : 'PNG İndir ve Kaydet'}
-        </button>
+        <ExportButtons exporting={exporting} onExport={handleExport} />
       </div>
 
       {/* Live preview */}

@@ -9,6 +9,7 @@ import EntrancePoster from '../EntrancePoster'
 import Wildflowers from './Wildflowers'
 import RibbonTable from './RibbonTable'
 import GardenFeast from './GardenFeast'
+import ChampagneFeast from './ChampagneFeast'
 import Meadow from './Meadow'
 import Clouds from './Clouds'
 import StringLights from './StringLights'
@@ -19,14 +20,18 @@ const Classic = forwardRef(function Classic(props, ref) {
   return <EntrancePoster ref={ref} {...props} eyebrow={props.dateText} />
 })
 
+// `swatch` is the design's own base background, used only to paint the "Mevcut"
+// chip in the background-colour picker (each Component still owns its inline
+// default; this is just the picker preview, so the small duplication is fine).
 export const ENTRANCE_DESIGNS = [
-  { id: 'classic', label: 'Klasik · QR', qrless: false, Component: Classic },
-  { id: 'wildflowers', label: 'Kır Çiçekleri', qrless: true, Component: Wildflowers },
-  { id: 'ribbon', label: 'Yeşil Kurdele', qrless: true, Component: RibbonTable },
-  { id: 'feast', label: 'Bahçe Şöleni', qrless: true, Component: GardenFeast },
-  { id: 'meadow', label: 'Çiçek Tarlası', qrless: true, Component: Meadow },
-  { id: 'clouds', label: 'Bulut Tarlası', qrless: true, Component: Clouds },
-  { id: 'lights', label: 'Işıklar Altında', qrless: true, Component: StringLights },
+  { id: 'classic', label: 'Klasik · QR', qrless: false, Component: Classic, swatch: '#fbf7ee' },
+  { id: 'wildflowers', label: 'Kır Çiçekleri', qrless: true, Component: Wildflowers, swatch: '#fbf7ee' },
+  { id: 'ribbon', label: 'Yeşil Kurdele', qrless: true, Component: RibbonTable, swatch: '#f7f1e4' },
+  { id: 'feast', label: 'Bahçe Şöleni', qrless: true, Component: GardenFeast, swatch: '#f7f1e4' },
+  { id: 'champagne', label: 'Şampanya Şöleni', qrless: true, Component: ChampagneFeast, swatch: '#f7f1e4' },
+  { id: 'meadow', label: 'Çiçek Tarlası', qrless: true, Component: Meadow, swatch: '#cfe1e8' },
+  { id: 'clouds', label: 'Bulut Tarlası', qrless: true, Component: Clouds, swatch: '#bdd5e1' },
+  { id: 'lights', label: 'Işıklar Altında', qrless: true, Component: StringLights, swatch: '#f8f3e8' },
 ]
 
 export function getEntranceDesign(id) {

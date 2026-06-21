@@ -84,7 +84,7 @@ function Cascade() {
   )
 }
 
-const Wildflowers = forwardRef(function Wildflowers({ welcome, names, dateText, orientation = 'portrait', thumb = false }, ref) {
+const Wildflowers = forwardRef(function Wildflowers({ welcome, names, dateText, orientation = 'portrait', thumb = false, bg }, ref) {
   const dims = ENTRANCE_DIMS[orientation] || ENTRANCE_DIMS.portrait
   const landscape = orientation === 'landscape'
 
@@ -106,7 +106,7 @@ const Wildflowers = forwardRef(function Wildflowers({ welcome, names, dateText, 
         width: dims.width,
         minHeight: dims.minHeight,
         boxSizing: 'border-box',
-        background: C.ivory,
+        background: bg || C.ivory,
         color: C.ink,
         overflow: 'hidden',
       }}

@@ -107,7 +107,7 @@ function TableScene() {
   )
 }
 
-const RibbonTable = forwardRef(function RibbonTable({ welcome, names, dateText, orientation = 'portrait', thumb = false }, ref) {
+const RibbonTable = forwardRef(function RibbonTable({ welcome, names, dateText, orientation = 'portrait', thumb = false, bg }, ref) {
   const dims = ENTRANCE_DIMS[orientation] || ENTRANCE_DIMS.portrait
   const landscape = orientation === 'landscape'
   const t = landscape
@@ -122,7 +122,7 @@ const RibbonTable = forwardRef(function RibbonTable({ welcome, names, dateText, 
         width: dims.width,
         minHeight: dims.minHeight,
         boxSizing: 'border-box',
-        background: C.cream,
+        background: bg || C.cream,
         color: C.ink,
         overflow: 'hidden',
       }}
