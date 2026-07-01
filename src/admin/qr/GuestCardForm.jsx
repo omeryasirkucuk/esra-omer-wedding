@@ -30,6 +30,7 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
   const [names, setNames] = useState(init.names ?? defaults.names)
   const [welcome, setWelcome] = useState(init.welcome ?? DEFAULT_WELCOME)
   const [group, setGroup] = useState(init.group ?? DEFAULT_GROUP)
+  const [subtitle, setSubtitle] = useState(init.subtitle ?? '')
   const [orientation, setOrientation] = useState(init.orientation ?? 'portrait')
 
   // Remember edits (skip the initial mount so we don't re-save the seed values).
@@ -39,8 +40,8 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
       didMount.current = true
       return
     }
-    onChange?.({ names, welcome, group, orientation })
-  }, [names, welcome, group, orientation]) // eslint-disable-line react-hooks/exhaustive-deps
+    onChange?.({ names, welcome, group, subtitle, orientation })
+  }, [names, welcome, group, subtitle, orientation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const posterRef = useRef(null)
   const { exporting, exportPoster } = usePosterExport()
@@ -51,7 +52,7 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
   function handleExport(format) {
     exportPoster(posterRef.current, {
       type: 'guest',
-      label: `Davetli Kartı — ${group}`,
+      label: `Davetli Kartı — ${group}${subtitle ? ` (${subtitle})` : ''}`,
       fileName: `davetli-karti-${orientation === 'landscape' ? 'yatay' : 'dikey'}-${fileSlug(group)}.png`,
       pixelRatio: EXPORT_RATIO,
       format,
@@ -76,6 +77,16 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
         <TextField label="İsimler" value={names} onChange={setNames} placeholder="Esra & Ömer" />
         <TextField label="Alt yazı" value={welcome} onChange={setWelcome} />
         <TextField label="Masa / grup adı" value={group} onChange={setGroup} placeholder="Örn. P&G, Üniversite, Aile" />
+        <Segmented
+          label="Taraf (alt başlık)"
+          value={subtitle}
+          onChange={setSubtitle}
+          options={[
+            { id: '', label: 'Yok' },
+            { id: 'Gelin', label: 'Gelin' },
+            { id: 'Damat', label: 'Damat' },
+          ]}
+        />
 
         <ExportButtons exporting={exporting} onExport={handleExport} />
       </div>
@@ -89,6 +100,7 @@ export default function GuestCardForm({ defaults, saved, onChange, onSaved, onAu
             names={names}
             welcome={welcome}
             group={group}
+            subtitle={subtitle}
             orientation={orientation}
           />
         </PosterStage>
