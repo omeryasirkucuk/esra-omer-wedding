@@ -12,6 +12,7 @@ import path from 'node:path'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPosters, addPoster, removePoster } from '../lib/qrPosters.js'
+import { QR_UPLOADER_ID } from '../lib/reservedUploaders.js'
 
 const posterUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-qr-posters'),
@@ -65,7 +66,7 @@ adminQrRouter.post('/qr-posters', posterUpload.single('file'), async (req, res, 
     // the bytes get a stable, never-expiring /media URL (local file or S3 object).
     const item = await storage.putUpload({
       displayName: 'QR Posterleri',
-      uploaderId: 'qr-poster',
+      uploaderId: QR_UPLOADER_ID,
       firstName: '',
       lastName: '',
       tempPath: req.file.path,

@@ -7,7 +7,8 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { downloadFileHandler } from './uploadsDownload.js'
-import { thumbHandler, displayHandler } from '../lib/thumbnails.js'
+import { thumbHandler, displayHandler, pregenerate } from '../lib/thumbnails.js'
+import { computeLqip } from '../lib/lqip.js'
 
 // Album uploads. The front-end uploads one file per request (so each gets its
 // own progress bar) and runs a few in parallel. Files first land in a temp dir,
@@ -23,9 +24,10 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 }, // 1 GB ceiling per file
 })
 
-// Shape returned to the public gallery — no internal fields.
+// Shape returned to the public gallery — no internal fields. `lqip` (a tiny
+// inline blur placeholder) is included so the grid can show it before the thumb.
 function publicView(e) {
-  return { id: e.id, url: e.url, type: e.type, uploadedAt: e.uploadedAt, displayName: e.displayName }
+  return { id: e.id, url: e.url, type: e.type, uploadedAt: e.uploadedAt, displayName: e.displayName, lqip: e.lqip }
 }
 
 // The folder slug is fixed at first upload and baked into the stable media URL
@@ -39,6 +41,9 @@ function slugFromUrl(url) {
 uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'no file' })
+    // Compute the blur placeholder from the temp file before putUpload moves it
+    // (images only; best-effort — a missing LQIP just means no blur-up).
+    const lqip = (req.file.mimetype || '').startsWith('image/') ? await computeLqip(req.file.path) : null
     const item = await storage.putUpload({
       displayName: req.body.displayName || 'Misafir',
       uploaderId: req.body.uploaderId || 'anon',
@@ -50,7 +55,11 @@ uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
       originalName: req.file.originalname,
       mime: req.file.mimetype,
       size: req.file.size,
+      lqip: lqip || undefined,
     })
+    // Warm the grid thumbnails + lightbox display image so the first viewer on
+    // weak wifi loads them from cache instead of waiting for generation.
+    pregenerate(slugFromUrl(item.url), String(item.url).split('/')[3]).catch(() => {})
     res.status(201).json(item)
   } catch (err) {
     next(err)
@@ -148,6 +157,7 @@ uploadsRouter.post('/:id/public', async (req, res, next) => {
         uploadedAt: item.uploadedAt,
         uploaderId,
         displayName: displayName || 'Misafir',
+        lqip: item.lqip,
       })
     } else {
       await removePublic(item.id)

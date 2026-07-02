@@ -20,13 +20,16 @@ import { storage } from '../storage/index.js'
 // should contain a slash or "..". Reject anything else.
 const SAFE = /^[A-Za-z0-9._-]+$/
 
-// Two derivative sizes, both cached next to the original:
-//  • thumb   — tiny WebP for album/grid tiles
-//  • display — resolution-capped WebP for the games, so a game photo loads at the
-//    same bounded quality for every guest regardless of what the admin uploaded
-//    (a 6 MB phone photo and a small one both normalize to this). Not tiny: it
-//    still looks crisp on a full-width memory card / puzzle / photo-guess image.
-const THUMB = { suffix: 'thumb', width: 500, quality: 72 } // ~150 px tile at up to 3× DPR
+// Cached derivatives, all written next to the original:
+//  • thumb   — tiny WebP for album/grid tiles. Two widths so a 3-col phone grid
+//    pulls ~250 px while a 6-col desktop grid pulls 500 px (srcset picks one).
+//  • display — resolution-capped WebP for the games and the album lightbox, so a
+//    photo loads at the same bounded quality for every guest regardless of what
+//    the original was (a 22 MB phone photo and a small one both normalize to
+//    this) — crisp full-screen without downloading the multi-MB original.
+const THUMB_WIDTHS = [250, 500]
+const THUMB_QUALITY = 72
+const thumbVariant = (w) => ({ suffix: `thumb-${w}`, width: w, quality: THUMB_QUALITY })
 const DISPLAY = { suffix: 'display', width: 1280, quality: 82 }
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v', '.webm', '.3gp', '.avi', '.mkv'])
 
@@ -118,10 +121,64 @@ function serveWebp(res, buf) {
   res.end(buf)
 }
 
+// Produce one derivative's bytes. Returns { buf } on success, { none: true }
+// when a video has no usable frame, or { fallback: true } when sharp can't read
+// a still (the caller then serves the original). No caching / no res here — both
+// the request handler and the upload-time pre-generation build on this.
+async function produce(slug, file, { width, quality }) {
+  if (isVideoFile(file)) {
+    await acquireVideo()
+    try {
+      return { buf: await videoPosterWebp(slug, file, { width, quality }) }
+    } catch {
+      return { none: true }
+    } finally {
+      releaseVideo()
+    }
+  }
+  try {
+    return { buf: await imageToWebp(await storage.readStream(slug, file), { width, quality }) }
+  } catch {
+    return { fallback: true }
+  }
+}
+
+// Ensure one derivative is cached (generate + store if missing). Best-effort:
+// used to warm the cache at upload time so the first viewer never waits.
+async function ensureDerivative(slug, file, variant) {
+  const cacheName = `${file}.${variant.suffix}.webp`
+  if (await storage.hasFile(slug, cacheName)) return
+  const out = await produce(slug, file, variant)
+  if (out.buf) {
+    try {
+      await storage.putBytes(slug, cacheName, out.buf, 'image/webp')
+    } catch {
+      /* caching best-effort */
+    }
+  }
+}
+
+// Warm every derivative for a freshly uploaded file so the album grid and
+// lightbox load from cache on first view. Images get both thumb widths + the
+// display size; videos only need the poster thumbs. Fire-and-forget.
+export async function pregenerate(slug, file) {
+  if (!slug || !file || !SAFE.test(slug) || !SAFE.test(file)) return
+  const variants = THUMB_WIDTHS.map(thumbVariant)
+  if (!isVideoFile(file)) variants.push(DISPLAY)
+  for (const v of variants) {
+    try {
+      await ensureDerivative(slug, file, v)
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
 // Build a request handler for one derivative size. Both /thumb and /display
 // share the same cache-then-generate flow; they differ only in the cap, the
-// quality, and the cache filename suffix.
-function makeHandler({ suffix, width, quality }) {
+// quality, and the cache filename suffix. `variantFor` resolves the size from
+// the request (the thumb endpoint reads an allowed `?w=`).
+function makeHandler(variantFor) {
   return async function handler(req, res, next) {
     try {
       const slug = String(req.query.slug || '')
@@ -129,7 +186,8 @@ function makeHandler({ suffix, width, quality }) {
       if (!SAFE.test(slug) || !SAFE.test(file)) {
         return res.status(400).json({ error: 'bad path' })
       }
-      const cacheName = `${file}.${suffix}.webp`
+      const variant = variantFor(req)
+      const cacheName = `${file}.${variant.suffix}.webp`
 
       // Cache hit: stream the stored derivative.
       if (await storage.hasFile(slug, cacheName)) {
@@ -144,30 +202,13 @@ function makeHandler({ suffix, width, quality }) {
       }
 
       // Cache miss — generate, cache, serve.
-      if (isVideoFile(file)) {
-        await acquireVideo()
-        let buf
-        try {
-          buf = await videoPosterWebp(slug, file, { width, quality })
-        } catch {
-          // No frame (unsupported/corrupt): 404 so the client shows its placeholder
-          // — never stream the whole video into an <img>.
-          return res.status(404).end()
-        } finally {
-          releaseVideo()
-        }
-        try {
-          await storage.putBytes(slug, cacheName, buf, 'image/webp')
-        } catch {
-          /* caching best-effort */
-        }
-        return serveWebp(res, buf)
+      const out = await produce(slug, file, variant)
+      if (out.none) {
+        // No frame (unsupported/corrupt video): 404 so the client shows its
+        // placeholder — never stream the whole video into an <img>.
+        return res.status(404).end()
       }
-
-      let buf
-      try {
-        buf = await imageToWebp(await storage.readStream(slug, file), { width, quality })
-      } catch {
+      if (out.fallback) {
         // sharp couldn't read it (unsupported/corrupt) — serve the original still.
         const s = await storage.readStream(slug, file)
         res.setHeader('Content-Type', mimeFromExt(file))
@@ -179,18 +220,24 @@ function makeHandler({ suffix, width, quality }) {
         return s.pipe(res)
       }
       try {
-        await storage.putBytes(slug, cacheName, buf, 'image/webp')
+        await storage.putBytes(slug, cacheName, out.buf, 'image/webp')
       } catch {
         /* caching best-effort */
       }
-      serveWebp(res, buf)
+      serveWebp(res, out.buf)
     } catch (err) {
       next(err)
     }
   }
 }
 
-// GET /api/uploads/thumb?slug=&file=    — tiny grid tile
-export const thumbHandler = makeHandler(THUMB)
-// GET /api/uploads/display?slug=&file=  — resolution-capped game image
-export const displayHandler = makeHandler(DISPLAY)
+// Grid tiles come in two widths; clamp `?w=` to the allowed set (default 500).
+function thumbVariantFor(req) {
+  const w = Number(req.query.w)
+  return thumbVariant(THUMB_WIDTHS.includes(w) ? w : 500)
+}
+
+// GET /api/uploads/thumb?slug=&file=&w=250|500  — tiny grid tile
+export const thumbHandler = makeHandler(thumbVariantFor)
+// GET /api/uploads/display?slug=&file=  — resolution-capped display image
+export const displayHandler = makeHandler(() => DISPLAY)

@@ -5,7 +5,8 @@
 // A "Seç" selection mode lets the admin pick thumbnails across uploaders and
 // bulk-delete them at once. Selection is tracked by a "{slug}::{id}" key.
 import { useEffect, useMemo, useState } from 'react'
-import { getUploaders, deleteUpload, setUploadPublic, mediaUrl, fileDownloadUrl, selectedZipUrl } from '../adminApi'
+import { getUploaders, deleteUpload, setUploadPublic, fileDownloadUrl, selectedZipUrl } from '../adminApi'
+import { displayUrl } from '../../lib/mediaActions.js'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 import MediaViewer from '../../pages/album/MediaViewer.jsx'
 import MediaThumb from '../../pages/album/MediaThumb.jsx'
@@ -341,7 +342,7 @@ export default function Albums({ onAuthError }) {
               index={viewer.index}
               onIndexChange={(i) => setViewer({ key: viewer.key, index: i })}
               onClose={() => setViewer(null)}
-              srcFor={(it) => mediaUrl(it.url)}
+              srcFor={(it) => displayUrl(it.url)}
               onDelete={(it) => handleDelete(it._slug, it.id)}
               onTogglePublic={(it) => handleToggleOnePublic(it._slug, it)}
             />

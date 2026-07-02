@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { confirmDialog } from '../../lib/confirm.js'
+import { displayUrl } from '../../lib/mediaActions.js'
 import MediaThumb from './MediaThumb.jsx'
 import MediaViewer from './MediaViewer.jsx'
 
@@ -194,6 +195,7 @@ export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPubl
           onClose={() => setViewer(null)}
           onDelete={onDelete}
           onTogglePublic={(it) => onSetPublic(it.id, !it.public)}
+          srcFor={(i) => displayUrl(i.url)}
         />
       )}
     </section>

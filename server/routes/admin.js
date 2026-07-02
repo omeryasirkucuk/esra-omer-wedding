@@ -7,6 +7,8 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
+import { pregenerate } from '../lib/thumbnails.js'
+import { GAME_UPLOADER_ID, isReservedUploader } from '../lib/reservedUploaders.js'
 import { ADMIN_SECRET } from '../lib/adminAuthConfig.js'
 import { verifyCredentials, userExists } from '../lib/adminUsers.js'
 import { adminSystemRouter } from './adminSystem.js'
@@ -82,7 +84,9 @@ adminRouter.get('/overview', async (req, res, next) => {
   try {
     const rsvps = await storage.getCollection('rsvp')
     const posts = (await storage.getCollection('posts')).filter((p) => !p.deleted)
-    const uploaders = await storage.listAllUploads()
+    // Reserved uploaders (game images, QR posters) aren't guest media, so keep
+    // them out of the album counts shown on the admin summary tab.
+    const uploaders = (await storage.listAllUploads()).filter((u) => !isReservedUploader(u.uploaderId))
     const uploadsTotal = uploaders.reduce((s, u) => s + u.items.filter((i) => !i.deleted).length, 0)
     const adults = rsvps.reduce((s, r) => s + (Number(r.guests) || 0), 0)
     const children = rsvps.reduce((s, r) => s + (Number(r.children) || 0), 0)
@@ -187,7 +191,9 @@ adminRouter.post('/rsvps/delete', async (req, res, next) => {
 
 adminRouter.get('/uploaders', async (req, res, next) => {
   try {
-    const uploaders = await storage.listAllUploads()
+    // Reserved uploaders (game images, QR posters) never belong in the album
+    // panel — hiding them here also makes them un-promotable to the public album.
+    const uploaders = (await storage.listAllUploads()).filter((u) => !isReservedUploader(u.uploaderId))
     const pub = await publicIdSet()
     for (const u of uploaders) {
       u.items = (u.items || []).map((i) => ({ ...i, public: pub.has(i.id) }))
@@ -210,6 +216,8 @@ adminRouter.post('/uploads/public', async (req, res, next) => {
     }
     const uploaders = await storage.listAllUploads()
     const owner = uploaders.find((u) => u.slug === slug)
+    // Never promote reserved uploads (game images, QR posters) to the album.
+    if (owner && isReservedUploader(owner.uploaderId)) return res.status(400).json({ error: 'reserved' })
     const item = owner?.items.find((i) => i.id === id && !i.deleted)
     if (!item) return res.status(404).json({ error: 'not found' })
     await addPublic({
@@ -220,6 +228,7 @@ adminRouter.post('/uploads/public', async (req, res, next) => {
       uploadedAt: item.uploadedAt,
       uploaderId: owner.uploaderId,
       displayName: displayName || owner.displayName || 'Misafir',
+      lqip: item.lqip,
     })
     res.status(204).end()
   } catch (e) {
@@ -346,7 +355,7 @@ adminRouter.post('/photos', photoUpload.single('file'), async (req, res, next) =
     if (!req.file) return res.status(400).json({ error: 'no file' })
     const item = await storage.putUpload({
       displayName: 'Oyun Görselleri',
-      uploaderId: 'oyun-gorsel',
+      uploaderId: GAME_UPLOADER_ID,
       firstName: '',
       lastName: '',
       tempPath: req.file.path,
@@ -356,6 +365,9 @@ adminRouter.post('/photos', photoUpload.single('file'), async (req, res, next) =
       mime: req.file.mimetype,
       size: req.file.size,
     })
+    // Warm the derivatives now so the games render the display image instantly.
+    const parts = String(item.url).split('/')
+    pregenerate(parts[2], parts[3]).catch(() => {})
     res.status(201).json({ url: item.url, type: item.type })
   } catch (e) {
     next(e)

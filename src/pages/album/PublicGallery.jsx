@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import Sprig from '../../components/Sprig.jsx'
 import { api } from '../../lib/api.js'
+import { displayUrl } from '../../lib/mediaActions.js'
 import MediaThumb from './MediaThumb.jsx'
 import MediaViewer from './MediaViewer.jsx'
 
@@ -76,7 +77,13 @@ export default function PublicGallery() {
       )}
 
       {viewer != null && items[viewer] && (
-        <MediaViewer items={items} index={viewer} onIndexChange={setViewer} onClose={() => setViewer(null)} />
+        <MediaViewer
+          items={items}
+          index={viewer}
+          onIndexChange={setViewer}
+          onClose={() => setViewer(null)}
+          srcFor={(i) => displayUrl(i.url)}
+        />
       )}
     </div>
   )

@@ -60,7 +60,7 @@ export const localStorageDriver = {
     return out
   },
 
-  async putUpload({ displayName, uploaderId, firstName, lastName, tempPath, fileId, ext, originalName, mime, size }) {
+  async putUpload({ displayName, uploaderId, firstName, lastName, tempPath, fileId, ext, originalName, mime, size, lqip }) {
     // Reuse this device's existing folder if it has one (so a later rename
     // doesn't scatter the guest's media across folders); otherwise create one.
     const existing = await this.findSlugs(uploaderId)
@@ -82,6 +82,7 @@ export const localStorageDriver = {
       url: mediaUrl(slug, storedName),
       uploadedAt: new Date().toISOString(),
       deleted: false,
+      ...(lqip ? { lqip } : {}),
     }
     manifest.items.push(item)
     writeJson(manifestPath, manifest)

@@ -37,13 +37,15 @@ export function streamUrl(item) {
 }
 
 // Small cached-thumbnail URL for grid display. Parses the "/media/<slug>/<file>"
-// path the same way as the save URL. Only used for images; video tiles show a
-// placeholder instead of hitting this.
-export function thumbUrl(item) {
+// path the same way as the save URL. `w` (250 or 500) picks the cached width so
+// a dense phone grid can pull the smaller asset via srcset; omitting it serves
+// the 500 px default. Only used for images; video tiles show a placeholder.
+export function thumbUrl(item, w) {
   const parts = String(item?.url || '').split('/')
   const slug = parts[2] || ''
   const file = parts[3] || ''
-  return `${API_BASE}/api/uploads/thumb?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}`
+  const width = w ? `&w=${w}` : ''
+  return `${API_BASE}/api/uploads/thumb?slug=${encodeURIComponent(slug)}&file=${encodeURIComponent(file)}${width}`
 }
 
 // Resolution-capped, same-origin URL for displaying a game photo. Parses the

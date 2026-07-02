@@ -11,11 +11,12 @@
 // storage-agnostic: it only uses the generic getCollection/saveCollection, so
 // both the local and S3 drivers work unchanged.
 import { storage } from '../storage/index.js'
+import { isReservedUploader } from './reservedUploaders.js'
 
 const NAME = 'public_album'
 
 // One entry per shared upload.
-//   { id, slug, url, type, uploadedAt, uploaderId, displayName, sharedAt }
+//   { id, slug, url, type, uploadedAt, uploaderId, displayName, lqip?, sharedAt }
 // `id` is the upload's file id (unique across the site); `sharedAt` drives the
 // newest-first order in the public gallery.
 
@@ -24,8 +25,10 @@ async function readAll() {
 }
 
 // Public items, newest-shared first. Sanitized for the guest gallery elsewhere.
+// Reserved uploads (game images, QR posters) are filtered out even if one was
+// previously promoted, so the guest album self-heals with no manual cleanup.
 export async function listPublic() {
-  const items = await readAll()
+  const items = (await readAll()).filter((e) => !isReservedUploader(e.uploaderId))
   return items.sort((a, b) => Date.parse(b.sharedAt) - Date.parse(a.sharedAt))
 }
 
@@ -49,8 +52,10 @@ function withLock(fn) {
   return run
 }
 
-// Add (or refresh) a public entry. Idempotent on `id`.
+// Add (or refresh) a public entry. Idempotent on `id`. Reserved uploads (game
+// images, QR posters) are never shareable, so ignore them defensively.
 export function addPublic(entry) {
+  if (isReservedUploader(entry.uploaderId)) return Promise.resolve()
   return withLock(async () => {
     const items = await readAll()
     const rest = items.filter((e) => e.id !== entry.id)
