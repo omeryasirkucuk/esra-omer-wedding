@@ -4,6 +4,7 @@
 // content.
 import { useEffect, useRef, useState } from 'react'
 import TableCardPoster, { TABLE_DIMS } from './posters/TableCardPoster'
+import TentSheet, { TENT_EXPORT_RATIO } from './posters/TentSheet'
 import PosterStage from './PosterStage'
 import { TextField, TextAreaField, Segmented } from './Field'
 import { usePosterExport } from './usePosterExport'
@@ -15,6 +16,7 @@ const DEFAULT_INSTRUCTION =
 const DEFAULT_WELCOME = 'HOŞ GELDİNİZ'
 
 const PREVIEW_W = 300 // on-screen preview width target (px)
+const PREVIEW_W_TENT = 210 // narrower preview so the tall folded strip fits
 const EXPORT_RATIO = 6 // base px × 6 → print-ready PNG
 
 // Turkish-aware filename slug.
@@ -38,6 +40,7 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
   const [welcome, setWelcome] = useState(init.welcome ?? DEFAULT_WELCOME)
   const [mark, setMark] = useState(init.mark ?? 'emblem')
   const [orientation, setOrientation] = useState(init.orientation ?? 'portrait')
+  const [printType, setPrintType] = useState(init.printType ?? 'single')
 
   // Remember edits (skip the initial mount so we don't re-save the seed values).
   const didMount = useRef(false)
@@ -46,21 +49,22 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
       didMount.current = true
       return
     }
-    onChange?.({ names, qrUrl, tagline, instruction, welcome, mark, orientation })
-  }, [names, qrUrl, tagline, instruction, welcome, mark, orientation]) // eslint-disable-line react-hooks/exhaustive-deps
+    onChange?.({ names, qrUrl, tagline, instruction, welcome, mark, orientation, printType })
+  }, [names, qrUrl, tagline, instruction, welcome, mark, orientation, printType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const posterRef = useRef(null)
   const { exporting, exportPoster } = usePosterExport()
 
+  const isTent = printType === 'tent'
   const dims = TABLE_DIMS[orientation]
-  const scale = PREVIEW_W / dims.width
+  const scale = (isTent ? PREVIEW_W_TENT : PREVIEW_W) / dims.width
 
   function handleExport(format) {
     exportPoster(posterRef.current, {
-      type: 'table',
-      label: `Masa Kartı — ${names}`,
-      fileName: `masa-karti-${orientation === 'landscape' ? 'yatay' : 'dikey'}-${fileSlug(names)}.png`,
-      pixelRatio: EXPORT_RATIO,
+      type: isTent ? 'table-tent' : 'table',
+      label: `${isTent ? 'Masa Kartı (Üçgen)' : 'Masa Kartı'} — ${names}`,
+      fileName: `masa-karti${isTent ? '-ucgen' : ''}-${orientation === 'landscape' ? 'yatay' : 'dikey'}-${fileSlug(names)}.png`,
+      pixelRatio: isTent ? TENT_EXPORT_RATIO : EXPORT_RATIO,
       format,
       onSaved,
       onAuthError,
@@ -71,6 +75,15 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
     <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-start">
       {/* Inputs */}
       <div className="space-y-4 order-2 lg:order-1">
+        <Segmented
+          label="Baskı Tipi"
+          value={printType}
+          onChange={setPrintType}
+          options={[
+            { id: 'single', label: 'Tek Yüz' },
+            { id: 'tent', label: 'Üçgen Baskılık' },
+          ]}
+        />
         <Segmented
           label="Yön"
           value={orientation}
@@ -102,16 +115,36 @@ export default function TableCardForm({ defaults, saved, onChange, onSaved, onAu
       <div className="order-1 lg:order-2 mx-auto">
         <span className="label block mb-2 text-center">Önizleme</span>
         <PosterStage width={dims.width} scale={scale}>
-          <TableCardPoster
-            ref={posterRef}
-            names={names}
-            tagline={tagline}
-            instruction={instruction}
-            welcome={welcome}
-            qrUrl={qrUrl}
-            mark={mark}
-            orientation={orientation}
-          />
+          {isTent ? (
+            <TentSheet
+              ref={posterRef}
+              faceWidth={dims.width}
+              faceHeight={dims.minHeight}
+              showGuides
+              renderFace={() => (
+                <TableCardPoster
+                  names={names}
+                  tagline={tagline}
+                  instruction={instruction}
+                  welcome={welcome}
+                  qrUrl={qrUrl}
+                  mark={mark}
+                  orientation={orientation}
+                />
+              )}
+            />
+          ) : (
+            <TableCardPoster
+              ref={posterRef}
+              names={names}
+              tagline={tagline}
+              instruction={instruction}
+              welcome={welcome}
+              qrUrl={qrUrl}
+              mark={mark}
+              orientation={orientation}
+            />
+          )}
         </PosterStage>
       </div>
     </div>

@@ -4,8 +4,20 @@
 import { posterThumbUrl, fileDownloadUrl, deleteQrPoster } from '../adminApi'
 import { confirmDialog, alertDialog } from '../../lib/confirm.js'
 
-const TYPE_LABEL = { table: 'Masa Kartı', guest: 'Davetli Kartı', entrance: 'Giriş Afişi' }
-const FILE_PREFIX = { table: 'masa-karti', guest: 'davetli-karti', entrance: 'giris-afisi' }
+const TYPE_LABEL = {
+  table: 'Masa Kartı',
+  guest: 'Davetli Kartı',
+  entrance: 'Giriş Afişi',
+  'table-tent': 'Masa Kartı (Üçgen)',
+  'guest-tent': 'Davetli Kartı (Üçgen)',
+}
+const FILE_PREFIX = {
+  table: 'masa-karti',
+  guest: 'davetli-karti',
+  entrance: 'giris-afisi',
+  'table-tent': 'masa-karti-ucgen',
+  'guest-tent': 'davetli-karti-ucgen',
+}
 
 function formatDate(iso) {
   try {

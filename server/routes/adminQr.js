@@ -22,7 +22,7 @@ const posterUpload = multer({
 
 export const adminQrRouter = Router()
 
-const POSTER_TYPES = new Set(['table', 'guest', 'entrance'])
+const POSTER_TYPES = new Set(['table', 'guest', 'entrance', 'table-tent', 'guest-tent'])
 // The folder slug is fixed at first upload and baked into the stable media URL
 // ("/media/<slug>/<storedName>"), so derive it from there for soft-delete.
 const slugFromUrl = (url) => String(url || '').split('/')[2] || ''
