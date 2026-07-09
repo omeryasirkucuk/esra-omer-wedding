@@ -4,8 +4,9 @@
 // album, but for a single item.
 
 // A Mac reports canShare({files}) too, but its sheet has no "save to disk", so
-// anything that isn't a touch device takes the download path.
-function isTouchDevice() {
+// anything that isn't a touch device takes the download path. Exported for the
+// bulk-save flow, which branches on the same device test.
+export function isTouchDevice() {
   if (typeof window === 'undefined') return false
   return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
 }

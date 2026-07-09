@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
-import { downloadFileHandler } from './uploadsDownload.js'
+import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { thumbHandler, displayHandler, pregenerate } from '../lib/thumbnails.js'
 import { computeLqip } from '../lib/lqip.js'
 
@@ -72,6 +72,12 @@ uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
 // fetch() cannot read into a blob without S3 CORS — streaming server-side avoids
 // that entirely and works for both the local and S3 drivers.
 uploadsRouter.get('/file', downloadFileHandler)
+
+// GET /api/uploads/download-zip?items=<base64 JSON [{slug,id}]>  → the selected
+// files as one ZIP. Same public posture as /file above: album media carries no
+// auth, and the handler validates every path segment. Desktop guests use this
+// for bulk "Kaydet"; phones share individual files instead.
+uploadsRouter.get('/download-zip', downloadZipHandler)
 
 // GET /api/uploads/thumb?slug=&file=  → small cached WebP for the grids.
 uploadsRouter.get('/thumb', thumbHandler)

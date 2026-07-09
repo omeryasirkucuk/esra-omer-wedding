@@ -11,6 +11,7 @@
 // storage-agnostic: it only uses the generic getCollection/saveCollection, so
 // both the local and S3 drivers work unchanged.
 import { storage } from '../storage/index.js'
+import { makeWriteLock } from '../storage/shared.js'
 import { isReservedUploader } from './reservedUploaders.js'
 
 const NAME = 'public_album'
@@ -41,16 +42,8 @@ export async function publicIdSet() {
 // Serialize every read-modify-write of the collection. Bulk "add to album" sends
 // one request per photo in parallel, and at the wedding many guests share at once;
 // without a lock those concurrent read→modify→write cycles clobber each other and
-// silently drop entries. A single promise chain runs them one at a time.
-let lock = Promise.resolve()
-function withLock(fn) {
-  const run = lock.then(fn, fn)
-  lock = run.then(
-    () => {},
-    () => {},
-  )
-  return run
-}
+// silently drop entries.
+const withLock = makeWriteLock()
 
 // Add (or refresh) a public entry. Idempotent on `id`. Reserved uploads (game
 // images, QR posters) are never shareable, so ignore them defensively.

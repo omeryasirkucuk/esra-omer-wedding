@@ -7,7 +7,7 @@ import { getProfile, hasProfile } from '../lib/identity.js'
 import UploadQueue from './album/UploadQueue.jsx'
 import MyGallery from './album/MyGallery.jsx'
 import PublicGallery from './album/PublicGallery.jsx'
-import { runWithConcurrency } from './album/runWithConcurrency.js'
+import { runWithConcurrency } from '../lib/runWithConcurrency.js'
 
 const UPLOAD_CONCURRENCY = 3
 const UPLOAD_ATTEMPTS = 3 // retry transient mobile-network failures before giving up

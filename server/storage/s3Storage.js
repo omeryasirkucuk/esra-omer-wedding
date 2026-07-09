@@ -22,11 +22,17 @@ import {
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { slugify, mediaUrl } from './shared.js'
+import { slugify, mediaUrl, makeWriteLock } from './shared.js'
 
 const BUCKET = process.env.S3_BUCKET
 const REGION = process.env.S3_REGION || 'eu-central-1'
 const client = new S3Client({ region: REGION })
+
+// Manifests are read-modify-write JSON on S3, so every update cycle must be
+// serialized — parallel uploads or bulk deletes would otherwise clobber each
+// other's write and silently drop items. The heavy file streaming stays outside
+// the lock; only the small manifest update runs inside it.
+const withManifestLock = makeWriteLock()
 
 async function readJsonKey(key, fallback) {
   try {
@@ -92,22 +98,24 @@ export const s3StorageDriver = {
     fs.unlink(tempPath, () => {})
 
     const manifestKey = `uploads/${slug}/manifest.json`
-    const manifest = await readJsonKey(manifestKey, { uploaderId, displayName, firstName, lastName, items: [] })
-    const item = {
-      id: fileId,
-      originalName,
-      storedName,
-      mime,
-      type: mime.startsWith('video') ? 'video' : 'image',
-      size,
-      url: mediaUrl(slug, storedName),
-      uploadedAt: new Date().toISOString(),
-      deleted: false,
-      ...(lqip ? { lqip } : {}),
-    }
-    manifest.items.push(item)
-    await writeJsonKey(manifestKey, manifest)
-    return item
+    return withManifestLock(async () => {
+      const manifest = await readJsonKey(manifestKey, { uploaderId, displayName, firstName, lastName, items: [] })
+      const item = {
+        id: fileId,
+        originalName,
+        storedName,
+        mime,
+        type: mime.startsWith('video') ? 'video' : 'image',
+        size,
+        url: mediaUrl(slug, storedName),
+        uploadedAt: new Date().toISOString(),
+        deleted: false,
+        ...(lqip ? { lqip } : {}),
+      }
+      manifest.items.push(item)
+      await writeJsonKey(manifestKey, manifest)
+      return item
+    })
   },
 
   async getUploads(uploaderId) {
@@ -124,18 +132,21 @@ export const s3StorageDriver = {
   // Soft-delete by id across all of this device's folders (the item may live in
   // an older, differently-named folder than the current display name implies).
   async softDeleteUpload({ uploaderId, id }) {
-    for (const slug of await this.findSlugs(uploaderId)) {
-      const manifestKey = `uploads/${slug}/manifest.json`
-      const manifest = await readJsonKey(manifestKey, null)
-      const item = manifest?.items.find((i) => i.id === id)
-      if (item) {
-        item.deleted = true
-        item.deletedAt = new Date().toISOString()
-        await writeJsonKey(manifestKey, manifest)
-        return true
+    const slugs = await this.findSlugs(uploaderId)
+    return withManifestLock(async () => {
+      for (const slug of slugs) {
+        const manifestKey = `uploads/${slug}/manifest.json`
+        const manifest = await readJsonKey(manifestKey, null)
+        const item = manifest?.items.find((i) => i.id === id)
+        if (item) {
+          item.deleted = true
+          item.deletedAt = new Date().toISOString()
+          await writeJsonKey(manifestKey, manifest)
+          return true
+        }
       }
-    }
-    return false
+      return false
+    })
   },
 
   // Key/value JSON document (object), e.g. editable game content.
@@ -163,14 +174,16 @@ export const s3StorageDriver = {
   // Admin: soft-delete an item addressed directly by folder slug.
   async softDeleteBySlug(slug, id) {
     const key = `uploads/${slug}/manifest.json`
-    const manifest = await readJsonKey(key, null)
-    if (!manifest) return false
-    const item = manifest.items.find((i) => i.id === id)
-    if (!item) return false
-    item.deleted = true
-    item.deletedAt = new Date().toISOString()
-    await writeJsonKey(key, manifest)
-    return true
+    return withManifestLock(async () => {
+      const manifest = await readJsonKey(key, null)
+      if (!manifest) return false
+      const item = manifest.items.find((i) => i.id === id)
+      if (!item) return false
+      item.deleted = true
+      item.deletedAt = new Date().toISOString()
+      await writeJsonKey(key, manifest)
+      return true
+    })
   },
 
   // Stream a bucket object through our own origin with HTTP Range support.

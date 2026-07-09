@@ -1,5 +1,5 @@
-// Admin album downloads, served through our own origin (no S3 round-trip for
-// the browser). Two shapes:
+// Album downloads (admin panel and guest album), served through our own origin
+// (no S3 round-trip for the browser). Two shapes:
 //   • downloadFileHandler — streams one stored file. Used on mobile, where the
 //     client fetches each selected file and hands them to the native share
 //     sheet (Save to Photos).

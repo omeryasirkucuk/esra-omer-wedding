@@ -5,14 +5,17 @@
 // Two modes:
 //  - Normal: tapping a thumb does nothing special; a per-item 🗑 deletes it.
 //    Items already shared to the public album carry a small gold badge.
-//  - Selection ("Seç"): tapping a thumb toggles a check; a bar can bulk-delete
-//    the selected items or promote/demote them to the public "Düğün Albümü".
+//  - Selection ("Seç"): tapping a thumb toggles a check; a bar can bulk-save
+//    the selected items, bulk-delete them, or promote/demote them to the
+//    public "Düğün Albümü".
 
 import { useState } from 'react'
+import { bulkSaveMedia } from '../../lib/bulkSave.js'
 import { confirmDialog } from '../../lib/confirm.js'
 import { displayUrl } from '../../lib/mediaActions.js'
 import MediaThumb from './MediaThumb.jsx'
 import MediaViewer from './MediaViewer.jsx'
+import SelectCheck from './SelectCheck.jsx'
 
 // Small gold pill marking an item that is live in the public album.
 function PublicBadge() {
@@ -39,20 +42,7 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle, onOpen }) 
       {item.public && !selecting && <PublicBadge />}
 
       {selecting ? (
-        <>
-          {selected && <span className="absolute inset-0 bg-primary/30 pointer-events-none" />}
-          <span
-            className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-white pointer-events-none ${
-              selected ? 'bg-gold' : 'bg-black/30 border border-white/70'
-            }`}
-          >
-            {selected && (
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </span>
-        </>
+        <SelectCheck selected={selected} />
       ) : (
         <span
           role="button"
@@ -78,6 +68,7 @@ function GalleryItem({ item, onDelete, selecting, selected, onToggle, onOpen }) 
 export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPublic, onSetPublic }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
+  const [saving, setSaving] = useState(false)
   const [viewer, setViewer] = useState(null) // index of the open item, or null
 
   const exitSelection = () => {
@@ -122,6 +113,18 @@ export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPubl
     exitSelection()
   }
 
+  // Save keeps the selection alive: the guest may still want to share or
+  // delete the same set right after downloading it.
+  const bulkSave = async () => {
+    if (selectedItems.length === 0 || saving) return
+    setSaving(true)
+    try {
+      await bulkSaveMedia(selectedItems)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section className="w-full mt-10">
       <div className="flex items-center justify-center gap-2 mb-4">
@@ -144,9 +147,18 @@ export default function MyGallery({ items, onDelete, onBulkDelete, onBulkSetPubl
       )}
 
       {selecting && (
-        <div className="flex items-center justify-between gap-2 mb-4 rounded-full border border-line bg-surface/70 backdrop-blur px-4 py-2">
+        <div className="flex items-center justify-between gap-2 mb-4 rounded-[1.5rem] border border-line bg-surface/70 backdrop-blur px-4 py-2">
           <span className="label md:text-[0.7rem] shrink-0">{selected.size} seçili</span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={bulkSave}
+              disabled={selected.size === 0 || saving}
+              className="btn-lux disabled:opacity-40"
+              style={{ background: 'var(--c-primary)', color: '#fffdf8', borderColor: 'var(--c-primary)' }}
+            >
+              {saving ? 'Kaydediliyor…' : 'Kaydet'}
+            </button>
             <button
               type="button"
               onClick={bulkSetPublic}

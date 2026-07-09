@@ -19,3 +19,20 @@ export function slugify(text) {
 export function mediaUrl(slug, storedName) {
   return `/media/${slug}/${storedName}`
 }
+
+// Serialize async read-modify-write cycles on a shared JSON document. S3 has no
+// atomic update, so two concurrent read→modify→write rounds on the same key
+// clobber each other and silently drop entries (e.g. of two parallel bulk
+// deletes, only one survives). Create one lock per document family and wrap
+// each full cycle in it; a single promise chain runs them one at a time.
+export function makeWriteLock() {
+  let chain = Promise.resolve()
+  return function withLock(fn) {
+    const run = chain.then(fn, fn)
+    chain = run.then(
+      () => {},
+      () => {},
+    )
+    return run
+  }
+}
