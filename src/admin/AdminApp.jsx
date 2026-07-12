@@ -8,6 +8,7 @@ import { useCoupleNames } from './useCoupleNames'
 import Overview from './panels/Overview'
 import SiteEditor from './panels/SiteEditor'
 import Rsvps from './panels/Rsvps'
+import Gifts from './panels/Gifts'
 import Albums from './panels/Albums'
 import Posts from './panels/Posts'
 import GamesEditor from './panels/GamesEditor'
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'overview', label: 'Özet', Panel: Overview },
   { id: 'site', label: 'Düğün Bilgileri', Panel: SiteEditor },
   { id: 'rsvps', label: 'Katılımcılar', Panel: Rsvps },
+  { id: 'gifts', label: 'Hediye', Panel: Gifts },
   { id: 'albums', label: 'Albüm', Panel: Albums },
   { id: 'posts', label: 'Pano', Panel: Posts },
   { id: 'games', label: 'Oyunlar', Panel: GamesEditor },

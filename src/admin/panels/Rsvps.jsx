@@ -2,11 +2,14 @@
 // Shows live totals at the top, a compact "add attendee" form, and per-row
 // inline editing of adult/child counts plus delete.
 import { useEffect, useMemo, useState } from 'react'
-import { getRsvps, addRsvp, updateRsvp, deleteRsvp, getSiteContent } from '../adminApi'
+import { getRsvps, addRsvp, updateRsvp, deleteRsvp, getSiteContent, getGifts } from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
 import PanelControls from '../PanelControls.jsx'
 import SortSelect from '../SortSelect.jsx'
+import Stat from '../Stat.jsx'
+import FilterRow from '../FilterRow.jsx'
+import Field from '../Field.jsx'
 import { matchesQuery, compareNames, compareNewest } from '../search.js'
 import { GROUP_OPTIONS, sideOptions, TagSelect } from '../rsvpTags.jsx'
 
@@ -45,6 +48,8 @@ export default function Rsvps({ onAuthError }) {
   const [noteFilter, setNoteFilter] = useState('all')
   // Couple's names for the "side" tag labels (fall back to generic words).
   const [couple, setCouple] = useState({ bride: '', groom: '' })
+  // Attendees with at least one linked gift record get a star next to their name.
+  const [giftedIds, setGiftedIds] = useState(() => new Set())
 
   useEffect(() => {
     let alive = true
@@ -56,6 +61,12 @@ export default function Rsvps({ onAuthError }) {
       })
     getSiteContent()
       .then((d) => alive && setCouple({ bride: d?.bride || '', groom: d?.groom || '' }))
+      .catch(() => {})
+    getGifts()
+      .then((d) => {
+        if (!alive) return
+        setGiftedIds(new Set((d.gifts || []).map((g) => g.rsvpId).filter(Boolean)))
+      })
       .catch(() => {})
     return () => {
       alive = false
@@ -344,6 +355,15 @@ export default function Rsvps({ onAuthError }) {
                       <span className="truncate">
                         {r.firstName} {r.lastName}
                       </span>
+                      {giftedIds.has(r.id) && (
+                        <span
+                          className="text-gold shrink-0"
+                          title="Hediye kaydı var"
+                          aria-label="Hediye kaydı var"
+                        >
+                          ★
+                        </span>
+                      )}
                       {r.addedByAdmin && (
                         <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
                           elle eklendi
@@ -433,55 +453,3 @@ export default function Rsvps({ onAuthError }) {
   )
 }
 
-// A small totals chip.
-function Stat({ label, value, highlight }) {
-  return (
-    <div
-      className={`card-soft px-4 py-2 text-center flex-1 min-w-[5.5rem] ${
-        highlight ? 'border-gold' : ''
-      }`}
-    >
-      <p className="label">{label}</p>
-      <p
-        className={`font-display text-2xl lining-nums tabular-nums ${
-          highlight ? 'text-gold' : 'text-primary'
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
-// One labelled row of filter pills. The active value gets a gold fill.
-function FilterRow({ label, value, onChange, options }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="label w-20 shrink-0">{label}</span>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          className={`rounded-full px-3 py-1 text-sm border transition ${
-            value === o.value
-              ? 'bg-gold text-surface border-gold'
-              : 'bg-bg text-muted border-line hover:border-gold'
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// A labelled form field wrapper.
-function Field({ label, className = '', children }) {
-  return (
-    <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="label">{label}</span>
-      {children}
-    </label>
-  )
-}

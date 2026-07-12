@@ -13,6 +13,8 @@ import { ADMIN_SECRET } from '../lib/adminAuthConfig.js'
 import { verifyCredentials, userExists } from '../lib/adminUsers.js'
 import { adminSystemRouter } from './adminSystem.js'
 import { adminQrRouter } from './adminQr.js'
+import { adminGiftsRouter } from './adminGifts.js'
+import { RSVP_GROUPS, RSVP_SIDES, cleanTag, cleanNote } from '../lib/attendeeTags.js'
 
 const photoUpload = multer({
   dest: path.join(os.tmpdir(), 'eo-admin-photos'),
@@ -80,6 +82,9 @@ adminRouter.use(adminSystemRouter)
 // "QR Oluştur" tab endpoints (generate/list/delete printable QR posters).
 adminRouter.use(adminQrRouter)
 
+// "Hediye" tab endpoints (wedding gift ledger + conversion rates).
+adminRouter.use(adminGiftsRouter)
+
 adminRouter.get('/overview', async (req, res, next) => {
   try {
     const rsvps = await storage.getCollection('rsvp')
@@ -114,16 +119,8 @@ adminRouter.get('/rsvps', async (req, res, next) => {
   }
 })
 
-// Add an attendee manually (admin manages the exact headcount).
-// Allowed attendee tags. `group` is the social circle; `side` is which of the
-// couple they belong to (gelin = bride, damat = groom, cift = both). Anything
-// outside these sets (including '') is stored as '' = untagged.
-const RSVP_GROUPS = new Set(['aile', 'arkadas', 'akraba', 'is'])
-const RSVP_SIDES = new Set(['gelin', 'damat', 'cift'])
-const cleanTag = (value, allowed) => (allowed.has(value) ? value : '')
-// Free-text custom label (e.g. "iş - üniversiteden", "aile - gelin tarafı").
-const cleanNote = (value) => String(value || '').trim().slice(0, 200)
-
+// Add an attendee manually (admin manages the exact headcount). Tag
+// vocabulary + sanitizers are shared with the gift routes (lib/attendeeTags.js).
 adminRouter.post('/rsvps', async (req, res, next) => {
   try {
     const { firstName, lastName, guests, children, attending, group, side, note } = req.body || {}

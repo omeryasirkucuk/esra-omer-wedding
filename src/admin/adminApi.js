@@ -100,6 +100,15 @@ export const updateRsvp = (payload) => post('/api/admin/rsvps/update', payload)
 // Remove an entry by id. Resolves to null (204 No Content).
 export const deleteRsvp = (id) => post('/api/admin/rsvps/delete', { id })
 
+// "Hediye" tab: the wedding gift ledger (one record per gift item) plus the
+// hand-entered conversion rates ({ usdTry, eurTry, goldGramTry }, TL each).
+export const getGifts = () => get('/api/admin/gifts')
+export const addGift = (payload) => post('/api/admin/gifts', payload)
+export const updateGift = (payload) => post('/api/admin/gifts/update', payload)
+export const deleteGift = (id) => post('/api/admin/gifts/delete', { id })
+export const getGiftSettings = () => get('/api/admin/gifts/settings')
+export const saveGiftSettings = (payload) => put('/api/admin/gifts/settings', payload)
+
 export const getUploaders = () => get('/api/admin/uploaders')
 
 export const deleteUpload = (slug, id) => post('/api/admin/uploads/delete', { slug, id })
