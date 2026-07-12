@@ -1,10 +1,12 @@
 // "Hediye" tab endpoints: the wedding gift ledger. Each record is ONE gift item
-// — cash in TRY/USD/EUR or gold pieces (subtype + piece count + grams per
-// piece). A record may link to an RSVP entry via `rsvpId` (set when the admin
-// picks the person from the attendee list) or stand alone with a free-text
-// name. Conversion rates the couple types in by hand live in the
-// `gift_settings` doc: { usdTry, eurTry, goldGramTry } = TL per 1 USD / 1 EUR /
-// 1 gram of gold. Mounted after the admin auth gate, so every route inherits it.
+// — cash in TRY/USD/EUR or gold pieces (subtype + karat + piece count + grams
+// per piece). A record may link to an RSVP entry via `rsvpId` (set when the
+// admin picks the person from the attendee list) or stand alone with a
+// free-text name. Conversion rates the couple types in by hand live in the
+// `gift_settings` doc: { usdTry, eurTry, gold24Try, gold22Try, gold14Try } =
+// TL per 1 USD / 1 EUR / 1 gram of gold at each karat (a legacy `goldGramTry`
+// value migrates to `gold24Try` on save). Mounted after the admin auth gate,
+// so every route inherits it.
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
@@ -12,6 +14,13 @@ import { RSVP_GROUPS, RSVP_SIDES, cleanTag, cleanNote } from '../lib/attendeeTag
 
 const GIFT_KINDS = new Set(['try', 'usd', 'eur', 'gold'])
 const GOLD_TYPES = new Set(['gram', 'ceyrek', 'yarim', 'tam', 'bilezik', 'other'])
+const GOLD_KARATS = new Set([14, 22, 24])
+// Customary purity per subtype, used when the client sends no/invalid karat.
+const DEFAULT_KARAT = { gram: 24 }
+const toKarat = (value, goldType) => {
+  const n = Math.trunc(Number(value))
+  return GOLD_KARATS.has(n) ? n : DEFAULT_KARAT[goldType] ?? 22
+}
 
 // Positive finite number, else 0 (invalid input never becomes NaN in storage).
 const toAmount = (value) => {
@@ -43,7 +52,8 @@ adminGiftsRouter.get('/gifts', async (req, res, next) => {
 
 adminGiftsRouter.post('/gifts', async (req, res, next) => {
   try {
-    const { name, rsvpId, kind, amount, goldType, count, grams, group, side, note } = req.body || {}
+    const { name, rsvpId, kind, amount, goldType, karat, count, grams, group, side, note } =
+      req.body || {}
     const cleanName = String(name || '').trim()
     if (!cleanName) return res.status(400).json({ error: 'name required' })
     if (!GIFT_KINDS.has(kind)) return res.status(400).json({ error: 'invalid kind' })
@@ -66,6 +76,7 @@ adminGiftsRouter.post('/gifts', async (req, res, next) => {
       kind,
       amount: gold ? 0 : toAmount(amount),
       goldType: gold ? goldType : '',
+      karat: gold ? toKarat(karat, goldType) : 0,
       count: gold ? toPieces(count) : 0,
       grams: gold ? toAmount(grams) : 0, // grams PER PIECE; total = count × grams
       group: cleanTag(group, RSVP_GROUPS),
@@ -127,11 +138,13 @@ adminGiftsRouter.get('/gifts/settings', async (req, res, next) => {
 
 adminGiftsRouter.put('/gifts/settings', async (req, res, next) => {
   try {
-    const { usdTry, eurTry, goldGramTry } = req.body || {}
+    const { usdTry, eurTry, goldGramTry, gold14Try, gold22Try, gold24Try } = req.body || {}
     const doc = {
       usdTry: toRate(usdTry),
       eurTry: toRate(eurTry),
-      goldGramTry: toRate(goldGramTry),
+      gold24Try: toRate(gold24Try ?? goldGramTry),
+      gold22Try: toRate(gold22Try),
+      gold14Try: toRate(gold14Try),
     }
     await storage.saveDoc('gift_settings', doc)
     res.json(doc)

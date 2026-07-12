@@ -101,7 +101,8 @@ export const updateRsvp = (payload) => post('/api/admin/rsvps/update', payload)
 export const deleteRsvp = (id) => post('/api/admin/rsvps/delete', { id })
 
 // "Hediye" tab: the wedding gift ledger (one record per gift item) plus the
-// hand-entered conversion rates ({ usdTry, eurTry, goldGramTry }, TL each).
+// hand-entered conversion rates ({ usdTry, eurTry, gold24Try, gold22Try,
+// gold14Try }, TL each).
 export const getGifts = () => get('/api/admin/gifts')
 export const addGift = (payload) => post('/api/admin/gifts', payload)
 export const updateGift = (payload) => post('/api/admin/gifts/update', payload)

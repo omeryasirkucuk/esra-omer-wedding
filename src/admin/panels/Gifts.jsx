@@ -28,11 +28,13 @@ import {
   DISPLAY_OPTIONS,
   kindLabel,
   goldTypeLabel,
+  giftKarat,
   giftValueTry,
   convertFromTry,
   formatValue,
   giftSummaryLabel,
   rateFor,
+  goldRateFor,
 } from '../gifts/giftModel.js'
 import GiftForm from '../gifts/GiftForm.jsx'
 import GiftSheet from '../gifts/GiftSheet.jsx'
@@ -45,12 +47,24 @@ const GIFT_SORTS = [
   { value: 'value', label: 'En değerli' },
 ]
 
-// Rate inputs (TL per unit) shown in the conversion card.
+// Rate inputs (TL per unit) shown in the conversion card. Gold rates are per
+// gram at each karat.
 const RATE_FIELDS = [
   { key: 'usdTry', label: 'Dolar Kuru (₺)' },
   { key: 'eurTry', label: 'Euro Kuru (₺)' },
-  { key: 'goldGramTry', label: 'Gram Altın (₺)' },
+  { key: 'gold24Try', label: '24 Ayar Gram (₺)' },
+  { key: 'gold22Try', label: '22 Ayar Gram (₺)' },
+  { key: 'gold14Try', label: '14 Ayar Gram (₺)' },
 ]
+
+// Older settings docs carry a single gold rate (`goldGramTry`); surface it as
+// the 24-karat rate so the input isn't blank after the upgrade. The legacy key
+// is dropped so later saves can't resurrect a cleared 24-karat rate from it.
+function normalizeRates(doc) {
+  const { goldGramTry, ...rates } = doc || {}
+  if (rates.gold24Try == null && goldGramTry != null) rates.gold24Try = goldGramTry
+  return rates
+}
 
 const EXPORT_FORMATS = [
   { value: 'pdf', label: 'PDF' },
@@ -84,7 +98,7 @@ export default function Gifts({ onAuthError }) {
         else if (alive) setError(true)
       })
     getGiftSettings()
-      .then((d) => alive && setRates(d || {}))
+      .then((d) => alive && setRates(normalizeRates(d)))
       .catch(() => {})
     getRsvps()
       .then((d) => alive && setRsvps(d.rsvps || []))
@@ -237,7 +251,10 @@ export default function Gifts({ onAuthError }) {
     const parts = []
     if (rateFor('usd', rates)) parts.push(`1 $ = ${formatValue(rateFor('usd', rates), 'try')}`)
     if (rateFor('eur', rates)) parts.push(`1 € = ${formatValue(rateFor('eur', rates), 'try')}`)
-    if (rateFor('gold', rates)) parts.push(`1 g altın = ${formatValue(rateFor('gold', rates), 'try')}`)
+    for (const karat of [24, 22, 14]) {
+      const rate = goldRateFor(karat, rates)
+      if (rate) parts.push(`1 g ${karat} ayar = ${formatValue(rate, 'try')}`)
+    }
     return parts.join(' · ')
   }, [rates])
 
@@ -248,13 +265,14 @@ export default function Gifts({ onAuthError }) {
     try {
       if (format === 'xlsx') {
         await exportXlsx({
-          header: ['Ad Soyad', 'Grup', 'Yakınlık', 'Cinsi', 'Altın Türü', 'Adet', 'Gram', 'Tutar', 'TL Karşılığı', 'Not', 'Tarih'],
+          header: ['Ad Soyad', 'Grup', 'Yakınlık', 'Cinsi', 'Altın Türü', 'Ayar', 'Adet', 'Gram', 'Tutar', 'TL Karşılığı', 'Not', 'Tarih'],
           rows: exportRows.map(({ gift: g, ...r }) => [
             r.name,
             r.group,
             r.side,
             kindLabel(g.kind),
             g.kind === 'gold' ? goldTypeLabel(g.goldType) : '',
+            g.kind === 'gold' ? giftKarat(g) : '',
             g.kind === 'gold' ? g.count : '',
             g.kind === 'gold' ? g.grams : '',
             g.kind === 'gold' ? '' : g.amount,
@@ -457,7 +475,7 @@ export default function Gifts({ onAuthError }) {
                   {/* What was given, with the numbers editable in place. */}
                   <div className="flex items-center gap-1.5 sm:justify-end sm:w-52">
                     <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
-                      {g.kind === 'gold' ? goldTypeLabel(g.goldType) : kindLabel(g.kind)}
+                      {g.kind === 'gold' ? `${goldTypeLabel(g.goldType)} · ${giftKarat(g)}` : kindLabel(g.kind)}
                     </span>
                     {g.kind === 'gold' ? (
                       <>

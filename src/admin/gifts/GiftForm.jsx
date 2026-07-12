@@ -2,13 +2,19 @@
 // list: picking a suggestion links the gift to that attendee (rsvpId → the star
 // on the Katılımcılar tab) and prefills their group/side tags; free text stays
 // an unlinked entry. The value fields switch with the chosen kind — cash shows
-// an amount, gold shows subtype + piece count + grams (grams pre-fills per
-// subtype but stays editable, e.g. bracelets vary).
+// an amount, gold shows subtype + karat + piece count + grams (karat and grams
+// pre-fill per subtype but stay editable, e.g. bracelets vary).
 import { useMemo, useState } from 'react'
 import Field from '../Field.jsx'
 import { matchesQuery } from '../search.js'
 import { GROUP_OPTIONS } from '../rsvpTags.jsx'
-import { KIND_OPTIONS, GOLD_TYPE_OPTIONS, defaultGrams } from './giftModel.js'
+import {
+  KIND_OPTIONS,
+  GOLD_TYPE_OPTIONS,
+  KARAT_OPTIONS,
+  defaultGrams,
+  defaultKarat,
+} from './giftModel.js'
 
 const INPUT_CLASS =
   'w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold'
@@ -20,6 +26,7 @@ const initialForm = () => ({
   kind: 'try',
   amount: '',
   goldType: INITIAL_GOLD_TYPE,
+  karat: String(defaultKarat(INITIAL_GOLD_TYPE)),
   count: 1,
   grams: String(defaultGrams(INITIAL_GOLD_TYPE)),
   group: '',
@@ -68,7 +75,12 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
 
   function handleGoldTypeChange(goldType) {
     const grams = defaultGrams(goldType)
-    setForm((f) => ({ ...f, goldType, grams: grams == null ? '' : String(grams) }))
+    setForm((f) => ({
+      ...f,
+      goldType,
+      karat: String(defaultKarat(goldType)),
+      grams: grams == null ? '' : String(grams),
+    }))
   }
 
   function validate() {
@@ -98,6 +110,7 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
         kind: form.kind,
         amount: Number(form.amount) || 0,
         goldType: form.goldType,
+        karat: Number(form.karat) || 0,
         count: Number(form.count) || 0,
         grams: Number(form.grams) || 0,
         group: form.group,
@@ -171,6 +184,17 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
             >
               {GOLD_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Ayar" className="w-full sm:w-28">
+            <select
+              value={form.karat}
+              onChange={(e) => setForm((f) => ({ ...f, karat: e.target.value }))}
+              className={INPUT_CLASS}
+            >
+              {KARAT_OPTIONS.map((o) => (
+                <option key={o.value} value={String(o.value)}>{o.label}</option>
               ))}
             </select>
           </Field>
