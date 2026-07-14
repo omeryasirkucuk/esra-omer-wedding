@@ -12,7 +12,7 @@ import os from 'node:os'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import sharp from 'sharp'
+import sharp, { withImageJob } from './sharpRuntime.js'
 import ffmpegPath from 'ffmpeg-static'
 import { storage } from '../storage/index.js'
 
@@ -73,8 +73,9 @@ function imageToWebp(srcStream, { width, quality }) {
 }
 
 // Cap concurrent video poster jobs: each downloads the original and runs ffmpeg,
-// which is heavier than an image resize. Photos are unaffected. Cached posters
-// skip this entirely, so it only gates the first view of each video.
+// which is heavier than an image resize. Photo decodes are gated separately by
+// withImageJob (sharpRuntime.js). Cached posters/derivatives skip both gates,
+// so they only apply the first time each variant is generated.
 const MAX_VIDEO_JOBS = 2
 let videoJobs = 0
 const videoWaiters = []
@@ -137,7 +138,11 @@ async function produce(slug, file, { width, quality }) {
     }
   }
   try {
-    return { buf: await imageToWebp(await storage.readStream(slug, file), { width, quality }) }
+    // Acquire the gate before opening the source stream so a queued job doesn't
+    // hold an idle S3 connection while it waits for a decode slot.
+    return await withImageJob(async () => ({
+      buf: await imageToWebp(await storage.readStream(slug, file), { width, quality }),
+    }))
   } catch {
     return { fallback: true }
   }

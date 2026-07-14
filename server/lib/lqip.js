@@ -3,7 +3,7 @@
 // preview appears instantly on weak connections with zero extra requests — the
 // real thumbnail then fades in on top. Standalone (no storage import) so it can
 // run on the upload's temp file without a dependency cycle with thumbnails.js.
-import sharp from 'sharp'
+import sharp, { withImageJob } from './sharpRuntime.js'
 
 const LQIP_WIDTH = 24
 const LQIP_QUALITY = 40
@@ -12,11 +12,15 @@ const LQIP_QUALITY = 40
 // processed (unsupported/corrupt) — callers treat a missing LQIP as optional.
 export async function computeLqip(filePath) {
   try {
-    const buf = await sharp(filePath)
-      .rotate() // honor EXIF orientation so the blur matches the real photo
-      .resize({ width: LQIP_WIDTH, height: LQIP_WIDTH, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: LQIP_QUALITY })
-      .toBuffer()
+    // Under the shared image-decode gate: this runs in the upload request path,
+    // and the tiny output still requires a full-resolution decode of the input.
+    const buf = await withImageJob(() =>
+      sharp(filePath)
+        .rotate() // honor EXIF orientation so the blur matches the real photo
+        .resize({ width: LQIP_WIDTH, height: LQIP_WIDTH, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: LQIP_QUALITY })
+        .toBuffer()
+    )
     return `data:image/webp;base64,${buf.toString('base64')}`
   } catch {
     return null
