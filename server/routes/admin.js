@@ -10,6 +10,7 @@ import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { pregenerate } from '../lib/thumbnails.js'
 import { GAME_UPLOADER_ID, isReservedUploader } from '../lib/reservedUploaders.js'
+import { GAME_IDS } from '../lib/gameIds.js'
 import { ADMIN_SECRET } from '../lib/adminAuthConfig.js'
 import { verifyCredentials, userExists } from '../lib/adminUsers.js'
 import { adminSystemRouter } from './adminSystem.js'
@@ -345,6 +346,23 @@ adminRouter.put('/games-content', async (req, res, next) => {
   try {
     await storage.saveDoc('game_content', req.body || {})
     res.json({ ok: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Enable/disable one game on the guest side. Merges the flag into the stored
+// doc (like /site-open) so a quick toggle never clobbers content edits sitting
+// unsaved in the editor. A missing key counts as enabled, so existing docs
+// need no migration.
+adminRouter.put('/games-enabled', async (req, res, next) => {
+  try {
+    const { game, enabled } = req.body || {}
+    if (!GAME_IDS.has(game)) return res.status(400).json({ error: 'unknown game' })
+    const current = (await storage.getDoc('game_content')) || {}
+    current.enabled = { ...(current.enabled || {}), [game]: Boolean(enabled) }
+    await storage.saveDoc('game_content', current)
+    res.json({ ok: true, enabled: current.enabled })
   } catch (e) {
     next(e)
   }

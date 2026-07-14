@@ -3,7 +3,7 @@
 // something to edit. Three sections — "Çifti Tanı (Quiz)", "Kim Demiş?" and
 // "Foto Tahmin" (with image upload) — are saved together as one object.
 import { useEffect, useState } from 'react'
-import { getGamesContent, saveGamesContent, uploadPhoto, mediaUrl } from '../adminApi'
+import { getGamesContent, saveGamesContent, setGameEnabled, uploadPhoto, mediaUrl } from '../adminApi'
 import { useCoupleNames } from '../useCoupleNames'
 import { quizQuestions } from '../../data/quiz'
 import { alertDialog } from '../../lib/confirm.js'
@@ -110,6 +110,16 @@ const GAME_TABS = [
   { id: 'puzzle', label: 'Yapboz' },
 ]
 
+// The guest-facing route ids (what the enabled map and the score board key on),
+// in the same order as the editor tabs above.
+const GAME_SWITCHES = [
+  { id: 'cifti-tani', label: 'Çifti Tanı' },
+  { id: 'kim-demis', label: 'Kim Demiş?' },
+  { id: 'foto-tahmin', label: 'Foto Tahmin' },
+  { id: 'eslestirme', label: 'Hafıza' },
+  { id: 'yapboz', label: 'Yapboz' },
+]
+
 // Normalise the memory array into exactly MEMORY_SLOTS string slots so the editor
 // always renders a fixed grid; empty slots are ''.
 function normalizeMemory(arr) {
@@ -130,6 +140,7 @@ export default function GamesEditor({ onAuthError }) {
   const [photoGuess, setPhotoGuess] = useState(null)
   const [memory, setMemory] = useState(null)
   const [puzzle, setPuzzle] = useState(null)
+  const [enabled, setEnabled] = useState(null) // { <gameId>: false } — missing key = on
   const [selected, setSelected] = useState('quiz')
   const [error, setError] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -151,6 +162,7 @@ export default function GamesEditor({ onAuthError }) {
         setPhotoGuess(p.map(normalizeRound))
         setMemory(normalizeMemory(d?.memory))
         setPuzzle(normalizePuzzle(d?.puzzle))
+        setEnabled(d?.enabled || {})
       })
       .catch((e) => {
         if (e.name === 'AuthError') onAuthError()
@@ -250,13 +262,31 @@ export default function GamesEditor({ onAuthError }) {
     setPuzzle({ imageUrl: url })
   }
 
+  // --- Enable/disable -------------------------------------------------------
+
+  // Each flip persists immediately through the merging endpoint (no "Kaydet"
+  // needed); on failure the switch snaps back.
+  async function toggleGame(id) {
+    const next = enabled[id] === false
+    const prev = enabled
+    setEnabled({ ...prev, [id]: next })
+    try {
+      await setGameEnabled(id, next)
+    } catch (e) {
+      setEnabled(prev)
+      if (e.name === 'AuthError') onAuthError()
+      else await alertDialog('Değiştirilemedi, tekrar deneyin.')
+    }
+  }
+
   // --- Save -----------------------------------------------------------------
 
   async function handleSave() {
     setSaving(true)
     setSaved(false)
     try {
-      await saveGamesContent({ quiz, whoSaid, photoGuess, memory, puzzle })
+      // `enabled` rides along so the whole-doc replace never drops the flags.
+      await saveGamesContent({ quiz, whoSaid, photoGuess, memory, puzzle, enabled })
       setSaved(true)
     } catch (e) {
       if (e.name === 'AuthError') onAuthError()
@@ -267,7 +297,7 @@ export default function GamesEditor({ onAuthError }) {
   }
 
   if (error) return <p className="text-muted text-center py-10">Veriler yüklenemedi.</p>
-  if (!quiz || !whoSaid || !photoGuess || !memory || !puzzle)
+  if (!quiz || !whoSaid || !photoGuess || !memory || !puzzle || !enabled)
     return <p className="text-muted text-center py-10">Yükleniyor…</p>
 
   return (
@@ -295,6 +325,35 @@ export default function GamesEditor({ onAuthError }) {
             {saving ? 'Kaydediliyor…' : 'Kaydet'}
           </button>
         </div>
+      </div>
+
+      {/* Per-game on/off switches. Off = the game disappears from the guest
+          hub and its direct link bounces back; flips persist instantly. */}
+      <div className="card-soft px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+        {GAME_SWITCHES.map((g) => {
+          const on = enabled[g.id] !== false
+          return (
+            <div key={g.id} className="flex items-center gap-3">
+              <span className={`font-display text-lg ${on ? 'text-primary' : 'text-muted line-through'}`}>
+                {g.label}
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleGame(g.id)}
+                role="switch"
+                aria-checked={on}
+                aria-label={`${g.label} açık/kapalı`}
+                className="relative w-14 h-8 rounded-full border border-line transition-colors shrink-0"
+                style={{ background: on ? 'var(--c-gold)' : '#cdc6b4' }}
+              >
+                <span
+                  className="absolute top-1 left-1 w-6 h-6 rounded-full bg-surface shadow transition-transform"
+                  style={{ transform: on ? 'translateX(22px)' : 'translateX(0)' }}
+                />
+              </button>
+            </div>
+          )
+        })}
       </div>
 
       {/* Section: Quiz --------------------------------------------------- */}

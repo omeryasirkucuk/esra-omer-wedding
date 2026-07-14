@@ -6,6 +6,7 @@ import Emblem from '../../components/Emblem.jsx'
 import IdentityPrompt from '../../components/IdentityPrompt.jsx'
 import { hasProfile } from '../../lib/identity.js'
 import { useSite } from '../../lib/siteContent.jsx'
+import { useEnabledGames, isGameEnabled } from './useEnabledGames.js'
 
 // Each tile maps to a route at /oyunlar/<id>. `symbol` is a small font-display
 // glyph shown inside a gold medallion.
@@ -22,7 +23,12 @@ const buildGames = (bride, groom) => [
 
 export default function GamesHub() {
   const { bride, groom } = useSite()
-  const games = buildGames(bride, groom)
+  const enabledMap = useEnabledGames()
+  // Until the flags load, render no tiles rather than all of them — a tile
+  // flashing in and then vanishing reads as a glitch.
+  const games = enabledMap
+    ? buildGames(bride, groom).filter((g) => isGameEnabled(enabledMap, g.id))
+    : []
   // Bump to re-render once a profile is saved via the identity prompt.
   const [, forceRerender] = useState(0)
 

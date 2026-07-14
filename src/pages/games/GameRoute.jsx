@@ -1,7 +1,7 @@
 // Resolves the :gameId route param to a game component. Unknown ids fall back
 // to a graceful "this game is being prepared" card.
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, Navigate } from 'react-router-dom'
 import Emblem from '../../components/Emblem.jsx'
 import IdentityPrompt from '../../components/IdentityPrompt.jsx'
 import { hasProfile } from '../../lib/identity.js'
@@ -10,6 +10,7 @@ import Quiz from './games/Quiz.jsx'
 import PhotoGuess from './games/PhotoGuess.jsx'
 import SlidePuzzle from './games/SlidePuzzle.jsx'
 import WhoSaid from './games/WhoSaid.jsx'
+import { useEnabledGames, isGameEnabled } from './useEnabledGames.js'
 
 const registry = {
   eslestirme: Memory,
@@ -22,6 +23,7 @@ const registry = {
 export default function GameRoute() {
   const { gameId } = useParams()
   const Game = registry[gameId]
+  const enabledMap = useEnabledGames()
   // Bump to re-render once a profile is saved via the identity prompt.
   const [, forceRerender] = useState(0)
 
@@ -44,6 +46,12 @@ export default function GameRoute() {
       </div>
     )
   }
+
+  // Hold the game until the enable flags load, then bounce a deep link to a
+  // switched-off game back to the hub (same blank paper the hub shows while
+  // loading, so there's no flash of a game that's about to disappear).
+  if (enabledMap === null) return <div className="paper min-h-[100svh]" />
+  if (!isGameEnabled(enabledMap, gameId)) return <Navigate to="/oyunlar" replace />
 
   return <Game />
 }

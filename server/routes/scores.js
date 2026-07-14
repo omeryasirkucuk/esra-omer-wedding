@@ -1,13 +1,14 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { readCollection, updateCollection } from '../lib/collections.js'
+import { GAME_IDS } from '../lib/gameIds.js'
 
 // Game scoreboard. Each finished game submits one entry; the games hub and the
 // end screens read the board back. `score` is a number (higher is better) and
 // `label` is the human-readable result (e.g. "6/8 doğru", "12 hamle · 0:45").
 export const scoresRouter = Router()
 
-const GAMES = new Set(['eslestirme', 'cifti-tani', 'foto-tahmin', 'yapboz', 'kim-demis'])
+const GAMES = GAME_IDS
 
 // GET /api/scores  → all entries, newest first (capped).
 scoresRouter.get('/', async (_req, res, next) => {

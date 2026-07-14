@@ -126,6 +126,10 @@ export const getGamesContent = () => get('/api/admin/games-content')
 
 export const saveGamesContent = (payload) => put('/api/admin/games-content', payload)
 
+// Switch one game on/off for guests. Merged server-side into the stored doc,
+// so it persists immediately without saving the rest of the editor state.
+export const setGameEnabled = (game, enabled) => put('/api/admin/games-enabled', { game, enabled })
+
 // Everything visible on the guest site (names, date, venue, program, families).
 export const getSiteContent = () => get('/api/admin/site-content')
 
