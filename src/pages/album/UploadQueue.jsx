@@ -65,7 +65,9 @@ function QueueRow({ item, onRetry }) {
 export default function UploadQueue({ items, onRetry }) {
   if (!items.length) return null
 
-  const active = items.filter((i) => i.status === 'uploading' || i.status === 'pending').length
+  const active = items.filter(
+    (i) => i.status === 'uploading' || i.status === 'pending' || i.status === 'preparing',
+  ).length
   const failed = items.filter((i) => i.status === 'error').length
   const label = active > 0 ? `Yükleniyor · ${active}` : failed > 0 ? `Yüklenemedi · ${failed}` : 'Yükleniyor'
 

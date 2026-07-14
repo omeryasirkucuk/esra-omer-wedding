@@ -91,8 +91,12 @@ export const s3StorageDriver = {
     const storedName = `${fileId}${ext}`
     const key = `uploads/${slug}/${storedName}`
 
+    // queueSize 1 halves the multipart buffering (~10 MB vs ~25 MB per upload)
+    // — with several guests uploading at once that headroom matters on 512 MB.
     await new Upload({
       client,
+      queueSize: 1,
+      partSize: 5 * 1024 * 1024,
       params: { Bucket: BUCKET, Key: key, Body: fs.createReadStream(tempPath), ContentType: mime },
     }).done()
     fs.unlink(tempPath, () => {})
@@ -268,6 +272,8 @@ export const s3StorageDriver = {
   async putObject(key, tempPath, contentType) {
     await new Upload({
       client,
+      queueSize: 1,
+      partSize: 5 * 1024 * 1024,
       params: { Bucket: BUCKET, Key: key, Body: fs.createReadStream(tempPath), ContentType: contentType },
     }).done()
     fs.unlink(tempPath, () => {})

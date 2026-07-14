@@ -89,7 +89,10 @@ export default function Pano() {
       let media = null
       if (file) {
         setProgress(0)
-        const item = await api.uploadFile(file, { onProgress: setProgress })
+        // Render thumbs/LQIP on this phone first; null falls back to the
+        // server pipeline (same contract as the album uploads).
+        const prep = await prepareDerivatives(file)
+        const item = await api.uploadFile(file, { onProgress: setProgress, derivatives: prep })
         media = { url: item.url, type: item.type }
       }
       const created = await api.createPost(media ? { text, media } : { text })

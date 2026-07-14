@@ -7,7 +7,7 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { listPublic, publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
-import { thumbHandler, displayHandler, pregenerate } from '../lib/thumbnails.js'
+import { thumbHandler, displayHandler, pregenerate, storeClientDerivatives } from '../lib/thumbnails.js'
 import { computeLqip } from '../lib/lqip.js'
 
 // Album uploads. The front-end uploads one file per request (so each gets its
@@ -40,36 +40,65 @@ function slugFromUrl(url) {
   return String(url || '').split('/')[2] || ''
 }
 
-// POST /api/uploads  (multipart: uploaderId, displayName, firstName, lastName, file)
-uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
+// Guests' browsers send the original plus pre-rendered derivatives (see
+// src/lib/mediaDerivatives.js). Every derivative field is optional so old
+// cached bundles that send only `file` keep working via the server pipeline.
+const uploadFields = upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'thumb250', maxCount: 1 },
+  { name: 'thumb500', maxCount: 1 },
+  { name: 'display', maxCount: 1 },
+])
+
+// The LQIP rides as a text field; it lands verbatim inside the uploader's
+// manifest, so cap and shape-check it (a bloated value would slow every
+// listing of that manifest forever).
+const LQIP_RE = /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/]+=*$/
+function sanitizeLqip(value) {
+  return typeof value === 'string' && value.length <= 8192 && LQIP_RE.test(value) ? value : null
+}
+
+// POST /api/uploads  (multipart: uploaderId, displayName, firstName, lastName,
+// file, and optionally lqip + thumb250/thumb500/display derivative blobs)
+uploadsRouter.post('/', uploadFields, async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'no file' })
-    // Compute the blur placeholder from the temp file before putUpload moves it
-    // (images only; best-effort — a missing LQIP just means no blur-up).
-    const lqip = (req.file.mimetype || '').startsWith('image/') ? await computeLqip(req.file.path) : null
+    const original = req.files?.file?.[0]
+    if (!original) return res.status(400).json({ error: 'no file' })
+    // Prefer the client-computed blur placeholder; compute server-side only
+    // when absent (images only; best-effort — missing LQIP just means no blur-up).
+    const lqip =
+      sanitizeLqip(req.body.lqip) ||
+      ((original.mimetype || '').startsWith('image/') ? await computeLqip(original.path) : null)
     const item = await storage.putUpload({
       displayName: req.body.displayName || 'Misafir',
       uploaderId: req.body.uploaderId || 'anon',
       firstName: req.body.firstName || '',
       lastName: req.body.lastName || '',
-      tempPath: req.file.path,
+      tempPath: original.path,
       fileId: nanoid(12),
-      ext: path.extname(req.file.originalname).toLowerCase(),
-      originalName: req.file.originalname,
-      mime: req.file.mimetype,
-      size: req.file.size,
+      ext: path.extname(original.originalname).toLowerCase(),
+      originalName: original.originalname,
+      mime: original.mimetype,
+      size: original.size,
       lqip: lqip || undefined,
     })
-    // Warm the grid thumbnails + lightbox display image so the first viewer on
-    // weak wifi loads them from cache instead of waiting for generation.
-    pregenerate(slugFromUrl(item.url), String(item.url).split('/')[3]).catch(() => {})
+    const slug = slugFromUrl(item.url)
+    // Persist the client's derivatives under the exact cache names, then run
+    // pregenerate as an idempotent gap-filler: it hasFile-checks each variant,
+    // so it no-ops when the client sent everything and only does real work for
+    // old bundles, undecodable formats, or failed video captures.
+    await storeClientDerivatives(slug, item.storedName, req.files)
+    pregenerate(slug, item.storedName).catch(() => {})
     res.status(201).json(item)
   } catch (err) {
     next(err)
   } finally {
-    // The storage driver removes the temp file on success; on any failure it
-    // must still go, or failed uploads slowly fill the ephemeral disk.
-    if (req.file?.path) fs.unlink(req.file.path, () => {})
+    // The storage driver removes the original's temp file on success; on any
+    // failure everything must still go, or failed uploads fill the ephemeral
+    // disk. Double-unlink of an already-moved file is a harmless no-op.
+    for (const list of Object.values(req.files || {})) {
+      for (const f of list) fs.unlink(f.path, () => {})
+    }
   }
 })
 

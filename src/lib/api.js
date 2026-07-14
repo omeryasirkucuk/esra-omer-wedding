@@ -59,13 +59,21 @@ export const api = {
     json('POST', `/api/uploads/${id}/public`, { ...authParams(), public: isPublic }),
 
   // Returns a configured XHR-based uploader for a single file with progress.
-  uploadFile(file, { onProgress } = {}) {
+  // `derivatives` (from prepareDerivatives) rides along so the server can
+  // store the browser-rendered thumbs/display/LQIP instead of decoding the
+  // full-resolution original itself.
+  uploadFile(file, { onProgress, derivatives } = {}) {
     const { uploaderId, displayName, firstName, lastName } = authParams()
     const form = new FormData()
     form.append('uploaderId', uploaderId)
     form.append('displayName', displayName)
     form.append('firstName', firstName)
     form.append('lastName', lastName)
+    if (derivatives?.lqip) form.append('lqip', derivatives.lqip)
+    for (const key of ['thumb250', 'thumb500', 'display']) {
+      const blob = derivatives?.[key]
+      if (blob) form.append(key, blob, `${key}.${blob.type === 'image/webp' ? 'webp' : 'jpg'}`)
+    }
     form.append('file', file)
 
     return new Promise((resolve, reject) => {

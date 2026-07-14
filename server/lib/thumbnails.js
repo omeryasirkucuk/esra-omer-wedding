@@ -12,7 +12,7 @@ import os from 'node:os'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import sharp, { withImageJob } from './sharpRuntime.js'
+import sharp, { withImageJob, FALLBACK_PIXEL_LIMIT } from './sharpRuntime.js'
 import ffmpegPath from 'ffmpeg-static'
 import { storage } from '../storage/index.js'
 
@@ -60,7 +60,7 @@ function mimeFromExt(file) {
 function imageToWebp(srcStream, { width, quality }) {
   return new Promise((resolve, reject) => {
     const chunks = []
-    const transform = sharp()
+    const transform = sharp({ limitInputPixels: FALLBACK_PIXEL_LIMIT })
       .rotate() // honor EXIF orientation so portrait photos aren't sideways
       .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
       .webp({ quality })
@@ -76,7 +76,9 @@ function imageToWebp(srcStream, { width, quality }) {
 // which is heavier than an image resize. Photo decodes are gated separately by
 // withImageJob (sharpRuntime.js). Cached posters/derivatives skip both gates,
 // so they only apply the first time each variant is generated.
-const MAX_VIDEO_JOBS = 2
+// Fallback-only now that clients capture posters in the browser; one staged
+// video + ffmpeg at a time keeps disk and memory pressure minimal.
+const MAX_VIDEO_JOBS = 1
 let videoJobs = 0
 const videoWaiters = []
 function acquireVideo() {
@@ -112,7 +114,7 @@ async function videoPosterWebp(slug, file, { width, quality }) {
       ff.on('error', reject)
       ff.on('close', (code) => (code === 0 && chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error(`ffmpeg exit ${code}`))))
     })
-    return await sharp(frame).rotate().resize({ width, height: width, fit: 'inside', withoutEnlargement: true }).webp({ quality }).toBuffer()
+    return await sharp(frame, { limitInputPixels: FALLBACK_PIXEL_LIMIT }).rotate().resize({ width, height: width, fit: 'inside', withoutEnlargement: true }).webp({ quality }).toBuffer()
   } finally {
     fs.unlink(tmp, () => {})
   }
@@ -161,6 +163,57 @@ async function ensureDerivative(slug, file, variant) {
       await storage.putBytes(slug, cacheName, out.buf, 'image/webp')
     } catch {
       /* caching best-effort */
+    }
+  }
+}
+
+// --- Client-provided derivatives ---------------------------------------------
+// Guests' browsers resize each photo (and capture a video poster frame) before
+// uploading, so the server never has to decode a full-resolution original on
+// the happy path. Fields map to the same cache names the on-demand handlers
+// read, making every stored derivative a permanent cache hit.
+const CLIENT_FIELDS = {
+  thumb250: thumbVariant(250),
+  thumb500: thumbVariant(500),
+  display: DISPLAY,
+}
+const MAX_DERIVATIVE_BYTES = 2 * 1024 * 1024
+// Decode guard for the ingest transcode: client derivatives are ≤1280 px, so
+// anything past a few MP in the header is hostile or broken — refuse to decode.
+const DERIVATIVE_PIXEL_LIMIT = 8_000_000
+const DERIVATIVE_MIME = /^image\/(webp|jpeg|png)$/
+
+// Store whatever derivatives the client sent. Strictly best-effort: a bad or
+// missing derivative must never fail the upload (pregenerate fills any gap) —
+// a 4xx here would make the client treat the whole PHOTO as permanently failed.
+export async function storeClientDerivatives(slug, storedName, files) {
+  for (const [field, variant] of Object.entries(CLIENT_FIELDS)) {
+    const f = files?.[field]?.[0]
+    if (!f) continue
+    try {
+      if (f.size > MAX_DERIVATIVE_BYTES || !DERIVATIVE_MIME.test(f.mimetype || '')) continue
+      const cacheName = `${storedName}.${variant.suffix}.webp`
+      let buf
+      if (f.mimetype === 'image/webp') {
+        // Header-only sanity check (no pixel decode), then store bytes as-is.
+        const meta = await sharp(f.path, { limitInputPixels: DERIVATIVE_PIXEL_LIMIT }).metadata()
+        if (!meta.width || meta.width > variant.width * 2 || (meta.height || 0) > variant.width * 2) continue
+        buf = await fs.promises.readFile(f.path)
+      } else {
+        // Safari cannot encode WebP in canvas.toBlob, so iPhones send JPEG.
+        // Normalize it to webp so the cache name and the hardcoded image/webp
+        // response header stay truthful. Bounded input (≤2 MB, ≤8 MP) makes
+        // this ~100× lighter than a full-resolution original decode.
+        buf = await withImageJob(() =>
+          sharp(f.path, { limitInputPixels: DERIVATIVE_PIXEL_LIMIT })
+            .resize({ width: variant.width, height: variant.width, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: variant.quality })
+            .toBuffer(),
+        )
+      }
+      await storage.putBytes(slug, cacheName, buf, 'image/webp')
+    } catch {
+      /* best-effort — pregenerate covers the gap */
     }
   }
 }

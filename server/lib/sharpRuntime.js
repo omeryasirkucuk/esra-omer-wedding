@@ -16,9 +16,16 @@ sharp.cache(false)
 sharp.concurrency(1)
 
 // At most this many full-resolution image decodes in flight; the rest queue.
-// Sized so two worst-case decodes plus the server baseline stay well under the
-// instance's 512 MB limit. Mirrors the video-poster gate in thumbnails.js.
-const MAX_IMAGE_JOBS = 2
+// Clients now generate derivatives in the browser, so this pipeline only runs
+// as a fallback (old cached bundles, undecodable formats) — a single slot
+// keeps even a worst-case 48 MP decode plus baseline under the 512 MB limit.
+const MAX_IMAGE_JOBS = 1
+
+// Refuse pathologically large images in the fallback pipeline: a 200 MP
+// original would allocate ~800 MB raw regardless of the job gate. 60 MP still
+// admits every current phone camera; beyond that the caller falls back to
+// serving the original.
+export const FALLBACK_PIXEL_LIMIT = 60_000_000
 let active = 0
 const waiters = []
 

@@ -8,6 +8,7 @@ import UploadQueue from './album/UploadQueue.jsx'
 import MyGallery from './album/MyGallery.jsx'
 import PublicGallery from './album/PublicGallery.jsx'
 import { runWithConcurrency } from '../lib/runWithConcurrency.js'
+import { prepareDerivatives } from '../lib/mediaDerivatives.js'
 
 const UPLOAD_CONCURRENCY = 3
 const UPLOAD_ATTEMPTS = 3 // retry transient mobile-network failures before giving up
@@ -91,11 +92,19 @@ function AlbumView() {
   // of a silently lost photo. Marks the row 'error' only after all attempts fail.
   const runUpload = useCallback(
     async (item) => {
+      // Render the derivatives on this phone first (serialized module-wide),
+      // cached on the closure item so retries never re-decode. null is fine —
+      // the server's fallback pipeline covers that file.
+      if (item.prep === undefined) {
+        setItem(item.id, { status: 'preparing', progress: 0 })
+        item.prep = await prepareDerivatives(item.file)
+      }
       setItem(item.id, { status: 'uploading', progress: 0 })
       for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
         try {
           await api.uploadFile(item.file, {
             onProgress: (fraction) => setItem(item.id, { progress: fraction }),
+            derivatives: item.prep,
           })
           setItem(item.id, { status: 'done', progress: 1 })
           return true
