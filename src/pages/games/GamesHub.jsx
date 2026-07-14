@@ -21,6 +21,15 @@ const buildGames = (bride, groom) => [
   { id: 'kim-demis', name: 'Kim Demiş?', descriptor: `${bride} mı ${groom} mi`, symbol: '❝' },
 ]
 
+// Grid shape adapts to however many games are switched on, so the layout never
+// ends with a lonely orphan row (4 tiles → 2x2, not 3+1). Tailwind needs the
+// class strings literal, hence the lookup instead of computed names.
+function gridLayout(count) {
+  if (count === 1) return 'grid-cols-1 max-w-[13rem]'
+  if (count === 2 || count === 4) return 'grid-cols-2 max-w-md'
+  return 'grid-cols-2 md:grid-cols-3 max-w-md md:max-w-2xl'
+}
+
 export default function GamesHub() {
   const { bride, groom } = useSite()
   const enabledMap = useEnabledGames()
@@ -45,7 +54,7 @@ export default function GamesHub() {
         Tören başlayana dek keyifli vakit geçirin
       </h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 mt-9 w-full max-w-md md:max-w-2xl">
+      <div className={`grid gap-4 md:gap-5 mt-9 w-full ${gridLayout(games.length)}`}>
         {games.map((g) => (
           <Link
             key={g.id}
