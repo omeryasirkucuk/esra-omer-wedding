@@ -163,7 +163,10 @@ async function prepareVideo(file) {
   const video = document.createElement('video')
   video.muted = true
   video.playsInline = true
-  video.preload = 'auto'
+  // 'metadata' only: a poster frame needs just the opening of the file, and
+  // 'auto' would tell the phone to start buffering the whole (possibly huge)
+  // video into memory. The play() kick below forces enough data for one frame.
+  video.preload = 'metadata'
   try {
     const frame = await Promise.race([
       new Promise((resolve, reject) => {
