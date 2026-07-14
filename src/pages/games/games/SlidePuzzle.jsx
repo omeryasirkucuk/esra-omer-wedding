@@ -69,6 +69,7 @@ export default function SlidePuzzle() {
   const [seconds, setSeconds] = useState(0)
   const [started, setStarted] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
+  const [preview, setPreview] = useState(false) // showing the original photo
   const solved = isSolved(tiles)
 
   // On mount, load the saved puzzle image; when set, tiles render as slices of
@@ -134,27 +135,40 @@ export default function SlidePuzzle() {
         <span>Süre {formatTime(seconds)}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 md:gap-3 mt-5 md:mt-7 w-full max-w-[16rem] md:max-w-sm mx-auto">
-        {tiles.map((tile, i) =>
-          tile === 0 ? (
-            <span key={i} className="aspect-square rounded-lg" aria-hidden="true" />
-          ) : (
-            <button
-              key={i}
-              type="button"
-              onClick={() => move(i)}
-              className="aspect-square rounded-lg md:rounded-xl border border-gold font-display text-primary text-2xl md:text-4xl flex items-center justify-center transition-transform active:scale-95 overflow-hidden"
-              style={
-                imageUrl
-                  ? tileImageStyle(tile, imageUrl)
-                  : { background: TILE_GRADIENT }
-              }
-            >
-              {imageUrl ? '' : tile}
-            </button>
-          )
-        )}
-      </div>
+      {preview && imageUrl ? (
+        // The original photo, framed and stretched exactly like the assembled
+        // board (tiles stretch the image square too), so it reads as "this is
+        // what you're building". Tapping it returns to the puzzle.
+        <button
+          type="button"
+          onClick={() => setPreview(false)}
+          aria-label="Yapboza dön"
+          className="block aspect-square rounded-lg border border-gold overflow-hidden mt-5 md:mt-7 w-full max-w-[16rem] md:max-w-sm mx-auto animate-fadeUp"
+          style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: '100% 100%' }}
+        />
+      ) : (
+        <div className="grid grid-cols-3 gap-1 md:gap-1.5 mt-5 md:mt-7 w-full max-w-[16rem] md:max-w-sm mx-auto">
+          {tiles.map((tile, i) =>
+            tile === 0 ? (
+              <span key={i} className="aspect-square rounded-md" aria-hidden="true" />
+            ) : (
+              <button
+                key={i}
+                type="button"
+                onClick={() => move(i)}
+                className="aspect-square rounded-md border border-gold font-display text-primary text-2xl md:text-4xl flex items-center justify-center transition-transform active:scale-95 overflow-hidden"
+                style={
+                  imageUrl
+                    ? tileImageStyle(tile, imageUrl)
+                    : { background: TILE_GRADIENT }
+                }
+              >
+                {imageUrl ? '' : tile}
+              </button>
+            )
+          )}
+        </div>
+      )}
 
       {solved ? (
         <div className="text-center mt-7 animate-fadeUp">
@@ -163,9 +177,20 @@ export default function SlidePuzzle() {
           <GameOverActions onRestart={reset} />
         </div>
       ) : (
-        <button type="button" onClick={reset} className="btn-lux md:text-[0.74rem] mt-7">
-          Karıştır
-        </button>
+        <div className="flex items-center justify-center gap-3 mt-7">
+          <button type="button" onClick={reset} className="btn-lux md:text-[0.74rem]">
+            Karıştır
+          </button>
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={() => setPreview((p) => !p)}
+              className="btn-lux md:text-[0.74rem]"
+            >
+              {preview ? 'Yapboza Dön' : 'Önizleme'}
+            </button>
+          )}
+        </div>
       )}
     </GameShell>
   )
