@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
-import { storage } from '../storage/index.js'
+import { readCollection, updateCollection } from '../lib/collections.js'
 
 // The live memory board. Posts are public to all guests; the feed is polled.
 export const postsRouter = Router()
@@ -21,7 +21,7 @@ function publicView(p) {
 postsRouter.get('/', async (req, res, next) => {
   try {
     const since = req.query.since ? Date.parse(req.query.since) : 0
-    const posts = (await storage.getCollection('posts'))
+    const posts = (await readCollection('posts'))
       .filter((p) => !p.deleted && Date.parse(p.createdAt) > since)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .map(publicView)
@@ -36,7 +36,6 @@ postsRouter.post('/', async (req, res, next) => {
   try {
     const { uploaderId, displayName, text, media } = req.body || {}
     if (!text && !media) return res.status(400).json({ error: 'empty post' })
-    const posts = await storage.getCollection('posts')
     const post = {
       id: nanoid(12),
       uploaderId: uploaderId || 'anon',
@@ -48,8 +47,7 @@ postsRouter.post('/', async (req, res, next) => {
       deleted: false,
       createdAt: new Date().toISOString(),
     }
-    posts.push(post)
-    await storage.saveCollection('posts', posts)
+    await updateCollection('posts', (posts) => posts.push(post))
     res.status(201).json(publicView(post))
   } catch (err) {
     next(err)
@@ -60,16 +58,18 @@ postsRouter.post('/', async (req, res, next) => {
 postsRouter.post('/:id/like', async (req, res, next) => {
   try {
     const { uploaderId } = req.body || {}
-    const posts = await storage.getCollection('posts')
-    const post = posts.find((p) => p.id === req.params.id)
-    if (!post) return res.status(404).json({ error: 'not found' })
-    post.likedBy = post.likedBy || []
-    const i = post.likedBy.indexOf(uploaderId)
-    if (i === -1) post.likedBy.push(uploaderId)
-    else post.likedBy.splice(i, 1)
-    post.likes = post.likedBy.length
-    await storage.saveCollection('posts', posts)
-    res.json({ likes: post.likes })
+    const likes = await updateCollection('posts', (posts) => {
+      const post = posts.find((p) => p.id === req.params.id)
+      if (!post) return null
+      post.likedBy = post.likedBy || []
+      const i = post.likedBy.indexOf(uploaderId)
+      if (i === -1) post.likedBy.push(uploaderId)
+      else post.likedBy.splice(i, 1)
+      post.likes = post.likedBy.length
+      return post.likes
+    })
+    if (likes === null) return res.status(404).json({ error: 'not found' })
+    res.json({ likes })
   } catch (err) {
     next(err)
   }
@@ -79,13 +79,16 @@ postsRouter.post('/:id/like', async (req, res, next) => {
 postsRouter.post('/:id/delete', async (req, res, next) => {
   try {
     const { uploaderId } = req.body || {}
-    const posts = await storage.getCollection('posts')
-    const post = posts.find((p) => p.id === req.params.id)
-    if (!post) return res.status(404).json({ error: 'not found' })
-    if (post.uploaderId !== uploaderId) return res.status(403).json({ error: 'forbidden' })
-    post.deleted = true
-    post.deletedAt = new Date().toISOString()
-    await storage.saveCollection('posts', posts)
+    const outcome = await updateCollection('posts', (posts) => {
+      const post = posts.find((p) => p.id === req.params.id)
+      if (!post) return 404
+      if (post.uploaderId !== uploaderId) return 403
+      post.deleted = true
+      post.deletedAt = new Date().toISOString()
+      return 204
+    })
+    if (outcome === 404) return res.status(404).json({ error: 'not found' })
+    if (outcome === 403) return res.status(403).json({ error: 'forbidden' })
     res.status(204).end()
   } catch (err) {
     next(err)

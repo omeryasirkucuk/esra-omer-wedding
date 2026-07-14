@@ -100,8 +100,10 @@ function releaseVideo() {
 // to a temp file first, then the frame is piped through sharp.
 async function videoPosterWebp(slug, file, { width, quality }) {
   const tmp = path.join(os.tmpdir(), `eo-poster-${process.pid}-${videoJobs}-${file}`)
-  await pipeline(await storage.readStream(slug, file), fs.createWriteStream(tmp))
   try {
+    // Staging inside the try: if the S3 read or the disk write fails halfway
+    // (e.g. disk pressure), the partial temp file is still removed below.
+    await pipeline(await storage.readStream(slug, file), fs.createWriteStream(tmp))
     const frame = await new Promise((resolve, reject) => {
       const ff = spawn(ffmpegPath, ['-ss', '0', '-i', tmp, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'])
       const chunks = []

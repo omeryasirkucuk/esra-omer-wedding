@@ -5,9 +5,10 @@
 //
 // Selection ("Seç") offers a single bulk action: Kaydet, which downloads the
 // picked items (share sheet on phones, one ZIP on desktop).
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import Sprig from '../../components/Sprig.jsx'
 import { api } from '../../lib/api.js'
+import { usePoll } from '../../lib/usePoll.js'
 import { bulkSaveMedia } from '../../lib/bulkSave.js'
 import { displayUrl } from '../../lib/mediaActions.js'
 import MediaThumb from './MediaThumb.jsx'
@@ -45,31 +46,19 @@ export default function PublicGallery() {
   const [selected, setSelected] = useState(() => new Set())
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    let alive = true
-    const fetchItems = async () => {
-      try {
-        const res = await api.listPublicUploads()
-        if (!alive) return
-        const next = res?.items || []
-        setItems(next)
-        // An item can be demoted/deleted mid-selection — drop stale picks.
-        setSelected((prev) => {
-          const live = new Set(next.map((i) => i.id))
-          const pruned = new Set([...prev].filter((id) => live.has(id)))
-          return pruned.size === prev.size ? prev : pruned
-        })
-      } catch {
-        // transient network error — the next poll retries
-      }
-    }
-    fetchItems()
-    const t = setInterval(fetchItems, POLL_MS)
-    return () => {
-      alive = false
-      clearInterval(t)
-    }
+  const fetchItems = useCallback(async () => {
+    const res = await api.listPublicUploads()
+    const next = res?.items || []
+    setItems(next)
+    // An item can be demoted/deleted mid-selection — drop stale picks.
+    setSelected((prev) => {
+      const live = new Set(next.map((i) => i.id))
+      const pruned = new Set([...prev].filter((id) => live.has(id)))
+      return pruned.size === prev.size ? prev : pruned
+    })
   }, [])
+
+  usePoll(fetchItems, POLL_MS)
 
   const exitSelection = () => {
     setSelecting(false)

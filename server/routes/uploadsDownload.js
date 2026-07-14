@@ -122,18 +122,47 @@ export async function downloadZipHandler(req, res, next) {
       console.error('[download-zip]', e)
       res.destroy()
     })
+    // A guest canceling the download (or losing wifi) closes the response
+    // mid-archive; without this the per-entry await below would never settle
+    // and the handler would pin its S3 stream forever.
+    let aborted = false
+    res.on('close', () => {
+      if (res.writableEnded) return
+      aborted = true
+      archive.abort()
+    })
     archive.pipe(res)
 
     // Add one file at a time so only a single source stream is open at once —
     // avoids holding many S3 connections idle (which can time out) for big sets.
     const used = new Map()
     for (const f of files) {
+      if (aborted) return
       const stream = await storage.readStream(f.slug, f.storedName)
+      if (aborted) {
+        stream.destroy()
+        return
+      }
       archive.append(stream, { name: uniqueName(f.originalName, used) })
-      await new Promise((resolve, reject) => {
-        archive.once('entry', resolve)
-        stream.once('error', reject)
+      const done = await new Promise((resolve) => {
+        const settle = (outcome) => () => {
+          archive.off('entry', onEntry)
+          archive.off('error', onError)
+          stream.off('error', onError)
+          res.off('close', onError)
+          resolve(outcome)
+        }
+        const onEntry = settle(true)
+        const onError = settle(false)
+        archive.once('entry', onEntry)
+        archive.once('error', onError)
+        stream.once('error', onError)
+        res.once('close', onError) // client gone — stop appending
       })
+      if (!done) {
+        stream.destroy()
+        return
+      }
     }
     await archive.finalize()
   } catch (e) {

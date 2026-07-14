@@ -18,6 +18,9 @@ export const uploadsRouter = Router()
 
 const TEMP_DIR = path.join(os.tmpdir(), 'eo-uploads')
 fs.mkdirSync(TEMP_DIR, { recursive: true })
+// Sweep leftovers from before a restart: a failed upload's temp file would
+// otherwise sit on the small ephemeral disk forever.
+for (const f of fs.readdirSync(TEMP_DIR)) fs.unlink(path.join(TEMP_DIR, f), () => {})
 
 const upload = multer({
   dest: TEMP_DIR,
@@ -63,6 +66,10 @@ uploadsRouter.post('/', upload.single('file'), async (req, res, next) => {
     res.status(201).json(item)
   } catch (err) {
     next(err)
+  } finally {
+    // The storage driver removes the temp file on success; on any failure it
+    // must still go, or failed uploads slowly fill the ephemeral disk.
+    if (req.file?.path) fs.unlink(req.file.path, () => {})
   }
 })
 

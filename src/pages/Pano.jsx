@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import Emblem from '../components/Emblem.jsx'
 import Sprig from '../components/Sprig.jsx'
@@ -6,6 +6,7 @@ import IdentityPrompt from '../components/IdentityPrompt.jsx'
 import Composer from './pano/Composer.jsx'
 import PostCard from './pano/PostCard.jsx'
 import { api } from '../lib/api.js'
+import { usePoll } from '../lib/usePoll.js'
 import { getUploaderId, hasProfile } from '../lib/identity.js'
 
 const POLL_MS = 4000
@@ -72,11 +73,7 @@ export default function Pano() {
     }
   }, [mergePosts])
 
-  useEffect(() => {
-    fetchPosts()
-    const t = setInterval(fetchPosts, POLL_MS)
-    return () => clearInterval(t)
-  }, [fetchPosts])
+  usePoll(fetchPosts, POLL_MS)
 
   const revealPending = () => {
     setPosts((current) => mergePosts(pending, current))

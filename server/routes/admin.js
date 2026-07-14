@@ -5,6 +5,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
+import { updateCollection, replaceCollection } from '../lib/collections.js'
 import { downloadFileHandler, downloadZipHandler } from './uploadsDownload.js'
 import { publicIdSet, addPublic, removePublic } from '../lib/publicAlbum.js'
 import { pregenerate } from '../lib/thumbnails.js'
@@ -129,7 +130,6 @@ adminRouter.post('/rsvps', async (req, res, next) => {
     const first = String(firstName || '').trim()
     const last = String(lastName || '').trim()
     if (!first && !last) return res.status(400).json({ error: 'name required' })
-    const rsvps = await storage.getCollection('rsvp')
     const entry = {
       id: nanoid(10),
       firstName: first,
@@ -143,8 +143,7 @@ adminRouter.post('/rsvps', async (req, res, next) => {
       createdAt: new Date().toISOString(),
       addedByAdmin: true,
     }
-    rsvps.push(entry)
-    await storage.saveCollection('rsvp', rsvps)
+    await updateCollection('rsvp', (rsvps) => rsvps.push(entry))
     res.status(201).json(entry)
   } catch (e) {
     next(e)
@@ -155,18 +154,20 @@ adminRouter.post('/rsvps', async (req, res, next) => {
 adminRouter.post('/rsvps/update', async (req, res, next) => {
   try {
     const { id, firstName, lastName, guests, children, attending, group, side, note } = req.body || {}
-    const rsvps = await storage.getCollection('rsvp')
-    const entry = rsvps.find((r) => r.id === id)
+    const entry = await updateCollection('rsvp', (rsvps) => {
+      const found = rsvps.find((r) => r.id === id)
+      if (!found) return null
+      if (firstName !== undefined) found.firstName = String(firstName).trim()
+      if (lastName !== undefined) found.lastName = String(lastName).trim()
+      if (guests !== undefined) found.guests = Number(guests) || 0
+      if (children !== undefined) found.children = Number(children) || 0
+      if (attending !== undefined) found.attending = !!attending
+      if (group !== undefined) found.group = cleanTag(group, RSVP_GROUPS)
+      if (side !== undefined) found.side = cleanTag(side, RSVP_SIDES)
+      if (note !== undefined) found.note = cleanNote(note)
+      return found
+    })
     if (!entry) return res.status(404).json({ error: 'not found' })
-    if (firstName !== undefined) entry.firstName = String(firstName).trim()
-    if (lastName !== undefined) entry.lastName = String(lastName).trim()
-    if (guests !== undefined) entry.guests = Number(guests) || 0
-    if (children !== undefined) entry.children = Number(children) || 0
-    if (attending !== undefined) entry.attending = !!attending
-    if (group !== undefined) entry.group = cleanTag(group, RSVP_GROUPS)
-    if (side !== undefined) entry.side = cleanTag(side, RSVP_SIDES)
-    if (note !== undefined) entry.note = cleanNote(note)
-    await storage.saveCollection('rsvp', rsvps)
     res.json(entry)
   } catch (e) {
     next(e)
@@ -176,10 +177,13 @@ adminRouter.post('/rsvps/update', async (req, res, next) => {
 adminRouter.post('/rsvps/delete', async (req, res, next) => {
   try {
     const { id } = req.body || {}
-    const rsvps = await storage.getCollection('rsvp')
-    const next2 = rsvps.filter((r) => r.id !== id)
-    if (next2.length === rsvps.length) return res.status(404).end()
-    await storage.saveCollection('rsvp', next2)
+    let removed = false
+    await replaceCollection('rsvp', (rsvps) => {
+      const next2 = rsvps.filter((r) => r.id !== id)
+      removed = next2.length !== rsvps.length
+      return next2
+    })
+    if (!removed) return res.status(404).end()
     res.status(204).end()
   } catch (e) {
     next(e)
@@ -262,12 +266,14 @@ adminRouter.get('/posts', async (req, res, next) => {
 adminRouter.post('/posts/delete', async (req, res, next) => {
   try {
     const { id } = req.body || {}
-    const posts = await storage.getCollection('posts')
-    const post = posts.find((p) => p.id === id)
-    if (!post) return res.status(404).end()
-    post.deleted = true
-    post.deletedAt = new Date().toISOString()
-    await storage.saveCollection('posts', posts)
+    const found = await updateCollection('posts', (posts) => {
+      const post = posts.find((p) => p.id === id)
+      if (!post) return false
+      post.deleted = true
+      post.deletedAt = new Date().toISOString()
+      return true
+    })
+    if (!found) return res.status(404).end()
     res.status(204).end()
   } catch (e) {
     next(e)
@@ -288,8 +294,7 @@ adminRouter.get('/scores', async (req, res, next) => {
 adminRouter.post('/scores/delete', async (req, res, next) => {
   try {
     const { id } = req.body || {}
-    const scores = await storage.getCollection('scores')
-    await storage.saveCollection('scores', scores.filter((s) => s.id !== id))
+    await replaceCollection('scores', (scores) => scores.filter((s) => s.id !== id))
     res.status(204).end()
   } catch (e) {
     next(e)

@@ -201,6 +201,11 @@ export const s3StorageDriver = {
       res.setHeader('Cache-Control', 'public, max-age=86400')
       if (out.ContentLength != null) res.setHeader('Content-Length', String(out.ContentLength))
       if (out.ContentRange) res.setHeader('Content-Range', out.ContentRange)
+      // Guests scrub/close <video> mid-stream constantly; without these handlers
+      // the resulting 'error' events have no listener and crash the whole process.
+      out.Body.on('error', () => res.destroy())
+      res.on('error', () => out.Body.destroy())
+      res.on('close', () => out.Body.destroy())
       out.Body.pipe(res)
     } catch {
       res.status(404).end()

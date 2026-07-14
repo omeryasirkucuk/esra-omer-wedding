@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
-import { storage } from '../storage/index.js'
+import { readCollection, updateCollection } from '../lib/collections.js'
 
 // Game scoreboard. Each finished game submits one entry; the games hub and the
 // end screens read the board back. `score` is a number (higher is better) and
@@ -12,7 +12,7 @@ const GAMES = new Set(['eslestirme', 'cifti-tani', 'foto-tahmin', 'yapboz', 'kim
 // GET /api/scores  → all entries, newest first (capped).
 scoresRouter.get('/', async (_req, res, next) => {
   try {
-    const scores = (await storage.getCollection('scores'))
+    const scores = [...(await readCollection('scores'))]
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, 500)
     res.json({ scores })
@@ -26,7 +26,6 @@ scoresRouter.post('/', async (req, res, next) => {
   try {
     const { game, score, label, detail, uploaderId, displayName } = req.body || {}
     if (!GAMES.has(game)) return res.status(400).json({ error: 'unknown game' })
-    const scores = await storage.getCollection('scores')
     const entry = {
       id: nanoid(12),
       game,
@@ -38,8 +37,7 @@ scoresRouter.post('/', async (req, res, next) => {
       uploaderId: uploaderId || 'anon',
       createdAt: new Date().toISOString(),
     }
-    scores.push(entry)
-    await storage.saveCollection('scores', scores)
+    await updateCollection('scores', (scores) => scores.push(entry))
     res.status(201).json(entry)
   } catch (e) {
     next(e)

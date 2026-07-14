@@ -99,12 +99,17 @@ function AlbumView() {
           })
           setItem(item.id, { status: 'done', progress: 1 })
           return true
-        } catch {
-          if (attempt < UPLOAD_ATTEMPTS) {
-            await new Promise((r) => setTimeout(r, 800 * attempt))
+        } catch (err) {
+          // A 4xx is permanent (bad request) — retrying just repeats it.
+          const permanent = err?.status >= 400 && err?.status < 500
+          if (!permanent && attempt < UPLOAD_ATTEMPTS) {
+            // Random jitter so a roomful of phones doesn't retry in lockstep
+            // against a server that is just coming back up.
+            await new Promise((r) => setTimeout(r, 800 * attempt + Math.random() * 1500))
             setItem(item.id, { progress: 0 })
           } else {
             setItem(item.id, { status: 'error' })
+            return false
           }
         }
       }

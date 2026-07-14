@@ -183,6 +183,17 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'internal error' })
 })
 
+// Last-resort backstops: a stray rejection or a stream error escaping a handler
+// must not take down all ~100 guests' connections mid-event. Every request is
+// stateless (JSON in S3), so logging and staying up is strictly better here
+// than crashing and dropping every in-flight upload.
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandled rejection]', err)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[uncaught exception]', err)
+})
+
 app.listen(PORT, () => {
   console.log(`API + static server on http://localhost:${PORT}`)
 })

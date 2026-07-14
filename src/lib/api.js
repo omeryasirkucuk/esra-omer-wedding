@@ -76,7 +76,11 @@ export const api = {
       }
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText))
-        else reject(new Error(`upload failed: ${xhr.status}`))
+        else {
+          const err = new Error(`upload failed: ${xhr.status}`)
+          err.status = xhr.status // lets the retry loop skip permanent (4xx) failures
+          reject(err)
+        }
       }
       xhr.onerror = () => reject(new Error('upload network error'))
       xhr.send(form)
