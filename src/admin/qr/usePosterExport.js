@@ -1,6 +1,7 @@
-// Turns a poster DOM node into a high-resolution PNG (~300dpi), downloads it for
-// the couple, and persists the same bytes to storage so the poster stays in the
-// gallery and is re-downloadable forever.
+// Turns a poster DOM node into a high-resolution PNG (~300dpi), hands it to the
+// couple (share sheet on touch devices, download on desktop), and persists the
+// same bytes to storage so the poster stays in the gallery and is
+// re-downloadable forever.
 //
 // Rendering happens client-side on purpose: the poster is a real Tailwind/SVG
 // component using the already-loaded brand fonts and the Emblem, so the export
@@ -11,18 +12,10 @@ import { useState } from 'react'
 import { toPng } from 'html-to-image'
 import { uploadQrPoster } from '../adminApi'
 import { alertDialog } from '../../lib/confirm.js'
+import { isTouchDevice } from '../../lib/mediaActions.js'
+import { saveGeneratedFile } from '../../lib/saveFile.js'
 
 const IVORY = '#fbf7ee'
-
-// Trigger a browser download of a data URL under a friendly filename.
-function downloadDataUrl(dataUrl, fileName) {
-  const a = document.createElement('a')
-  a.href = dataUrl
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-}
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -38,7 +31,7 @@ function loadImage(src) {
 // 300 DPI, so the print shop gets a high-res, physically-sized file (e.g. a
 // 4480px-wide entrance sign → a ~379 mm page that scales cleanly up to 70×100).
 // jsPDF is loaded on demand so it never weighs down the PNG path or the bundle.
-async function downloadPdf(pngDataUrl, fileName) {
+async function savePdf(pngDataUrl, fileName) {
   const { jsPDF } = await import('jspdf')
   const img = await loadImage(pngDataUrl)
   const DPI = 300
@@ -55,7 +48,7 @@ async function downloadPdf(pngDataUrl, fileName) {
   const pw = pdf.internal.pageSize.getWidth()
   const ph = pdf.internal.pageSize.getHeight()
   pdf.addImage(pngDataUrl, 'PNG', 0, 0, pw, ph, undefined, 'FAST')
-  pdf.save(fileName)
+  await saveGeneratedFile(pdf.output('blob'), fileName)
 }
 
 // Render the poster to a print-resolution PNG data URL.
@@ -116,19 +109,22 @@ export function usePosterExport() {
     try {
       // Fonts must be ready before capture or html-to-image embeds fallbacks.
       if (document.fonts?.ready) await document.fonts.ready
+      // WebKit on touch devices tends to miss webfonts on the first
+      // rasterization pass; a cheap warm-up render makes the real one reliable.
+      if (isTouchDevice()) await renderPoster(node, 1, backgroundColor)
       // pixelRatio multiplies the modest base px up to a print-ready PNG (e.g.
       // base 640px × 7 ≈ 4480px wide — fine for a 70×100 large-format print).
       const dataUrl = await renderPoster(node, pixelRatio, backgroundColor)
       const name = String(fileName).replace(/\.png$/i, format === 'pdf' ? '.pdf' : '.png')
 
       if (format === 'pdf') {
-        await downloadPdf(dataUrl, name)
+        await savePdf(dataUrl, name)
         return
       }
 
-      downloadDataUrl(dataUrl, name)
-      // Persist the very same PNG to the gallery.
       const blob = await (await fetch(dataUrl)).blob()
+      await saveGeneratedFile(blob, name)
+      // Persist the very same PNG to the gallery.
       const entry = await uploadQrPoster(blob, { type, label })
       onSaved?.(entry)
     } catch (err) {
