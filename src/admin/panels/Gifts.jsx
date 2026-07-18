@@ -25,6 +25,7 @@ import { matchesQuery, compareNames, compareNewest, normalizeText } from '../sea
 import { GROUP_OPTIONS, sideOptions, TagSelect, groupLabel, sideLabel } from '../rsvpTags.jsx'
 import {
   KIND_OPTIONS,
+  GOLD_TYPE_OPTIONS,
   DISPLAY_OPTIONS,
   kindLabel,
   goldTypeLabel,
@@ -83,6 +84,7 @@ export default function Gifts({ onAuthError }) {
   const [groupFilter, setGroupFilter] = useState('all')
   const [sideFilter, setSideFilter] = useState('all')
   const [kindFilter, setKindFilter] = useState('all')
+  const [goldTypeFilter, setGoldTypeFilter] = useState('all')
   // The unit the summary total (and per-row values) are shown in.
   const [display, setDisplay] = useState('try')
   const [exportOpen, setExportOpen] = useState(false)
@@ -115,13 +117,22 @@ export default function Gifts({ onAuthError }) {
   const groupFilters = [{ value: 'all', label: 'Tümü' }, ...GROUP_OPTIONS.filter((o) => o.value)]
   const sideFilters = [{ value: 'all', label: 'Tümü' }, ...sideOpts.filter((o) => o.value)]
   const kindFilters = [{ value: 'all', label: 'Tümü' }, ...KIND_OPTIONS]
+  const goldTypeFilters = [
+    { value: 'all', label: 'Tümü' },
+    ...GOLD_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+  ]
 
   const hasActiveFilter =
-    groupFilter !== 'all' || sideFilter !== 'all' || kindFilter !== 'all' || query.trim() !== ''
+    groupFilter !== 'all' ||
+    sideFilter !== 'all' ||
+    kindFilter !== 'all' ||
+    goldTypeFilter !== 'all' ||
+    query.trim() !== ''
   function clearFilters() {
     setGroupFilter('all')
     setSideFilter('all')
     setKindFilter('all')
+    setGoldTypeFilter('all')
     setQuery('')
   }
 
@@ -138,9 +149,10 @@ export default function Gifts({ onAuthError }) {
       .filter((g) => groupFilter === 'all' || (g.group || '') === groupFilter)
       .filter((g) => sideFilter === 'all' || (g.side || '') === sideFilter)
       .filter((g) => kindFilter === 'all' || g.kind === kindFilter)
+      .filter((g) => goldTypeFilter === 'all' || (g.kind === 'gold' && g.goldType === goldTypeFilter))
       .filter((g) => matchesQuery(query, g.name, g.note))
       .sort(comparators[sort] || comparators.recent)
-  }, [gifts, rates, query, sort, groupFilter, sideFilter, kindFilter])
+  }, [gifts, rates, query, sort, groupFilter, sideFilter, kindFilter, goldTypeFilter])
 
   // Summary of the filtered view. The total is only shown when every visible
   // entry is convertible with the entered rates — a partial sum would lie.
@@ -148,13 +160,31 @@ export default function Gifts({ onAuthError }) {
     const people = new Set(filtered.map((g) => g.rsvpId || `n:${normalizeText(g.name)}`)).size
     let totalTry = 0
     let missingRate = false
+    // Gold breakdown of the filtered view: piece count and total grams per
+    // subtype, plus the grand total of grams — so "how many çeyrek / how many
+    // grams" reads straight off the summary.
+    const goldPieces = {}
+    let goldGrams = 0
     for (const g of filtered) {
       const v = giftValueTry(g, rates)
       if (v == null) missingRate = true
       else totalTry += v
+      if (g.kind !== 'gold') continue
+      const count = Number(g.count) || 0
+      const grams = (Number(g.grams) || 0) * count
+      goldGrams += grams
+      const type = g.goldType || 'other'
+      if (!goldPieces[type]) goldPieces[type] = { count: 0, grams: 0 }
+      goldPieces[type].count += count
+      goldPieces[type].grams += grams
     }
+    const goldTypes = GOLD_TYPE_OPTIONS.filter((o) => goldPieces[o.value]).map((o) => ({
+      value: o.value,
+      label: o.label,
+      ...goldPieces[o.value],
+    }))
     const shown = missingRate ? null : convertFromTry(totalTry, display, rates)
-    return { people, entries: filtered.length, totalTry, missingRate, shown }
+    return { people, entries: filtered.length, totalTry, missingRate, shown, goldGrams, goldTypes }
   }, [filtered, rates, display])
 
   const totalLabel = formatValue(totals.shown, display, display === 'gold' ? 2 : 0)
@@ -316,6 +346,17 @@ export default function Gifts({ onAuthError }) {
         />
       </div>
 
+      {/* Gold breakdown of the filtered view: total grams + piece count per
+          subtype (çeyrek/yarım/…), each with its gram subtotal underneath. */}
+      {totals.goldTypes.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Stat label="Toplam Gram" value={formatValue(totals.goldGrams, 'gold', 2) ?? '—'} highlight />
+          {totals.goldTypes.map((t) => (
+            <Stat key={t.value} label={t.label} value={t.count} hint={formatValue(t.grams, 'gold', 2)} />
+          ))}
+        </div>
+      )}
+
       {/* Hand-entered conversion rates + the unit the total is shown in. */}
       <div className="card-soft p-4 mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
         {RATE_FIELDS.map(({ key, label }) => (
@@ -378,6 +419,7 @@ export default function Gifts({ onAuthError }) {
           <FilterRow label="Grup" value={groupFilter} onChange={setGroupFilter} options={groupFilters} />
           <FilterRow label="Yakınlık" value={sideFilter} onChange={setSideFilter} options={sideFilters} />
           <FilterRow label="Cinsi" value={kindFilter} onChange={setKindFilter} options={kindFilters} />
+          <FilterRow label="Altın Türü" value={goldTypeFilter} onChange={setGoldTypeFilter} options={goldTypeFilters} />
         </div>
       </div>
 
