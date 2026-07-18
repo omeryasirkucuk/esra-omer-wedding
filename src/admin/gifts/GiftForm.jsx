@@ -4,6 +4,10 @@
 // an unlinked entry. The value fields switch with the chosen kind — cash shows
 // an amount, gold shows subtype + karat + piece count + grams (karat and grams
 // pre-fill per subtype but stay editable, e.g. bracelets vary).
+//
+// With `lockedAttendee` ({ id, name, group, side }) the person is fixed — the
+// combobox is replaced by a read-only chip and the gift is linked to that
+// attendee. Used by the Katılımcılar tab to create-and-link a gift in place.
 import { useMemo, useState } from 'react'
 import Field from '../Field.jsx'
 import { matchesQuery } from '../search.js'
@@ -20,36 +24,38 @@ const INPUT_CLASS =
   'w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold'
 
 const INITIAL_GOLD_TYPE = 'ceyrek'
-const initialForm = () => ({
-  name: '',
-  rsvpId: '',
+const initialForm = (locked) => ({
+  name: locked?.name || '',
+  rsvpId: locked?.id || '',
   kind: 'try',
   amount: '',
   goldType: INITIAL_GOLD_TYPE,
   karat: String(defaultKarat(INITIAL_GOLD_TYPE)),
   count: 1,
   grams: String(defaultGrams(INITIAL_GOLD_TYPE)),
-  group: '',
-  side: '',
+  group: locked?.group || '',
+  side: locked?.side || '',
   note: '',
 })
 
-export default function GiftForm({ rsvps, sideOpts, onAdd }) {
-  const [form, setForm] = useState(initialForm)
+export default function GiftForm({ rsvps, sideOpts, onAdd, lockedAttendee = null, submitLabel = 'Ekle' }) {
+  const [form, setForm] = useState(() => initialForm(lockedAttendee))
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
 
   const gold = form.kind === 'gold'
 
-  // Attendee suggestions for the typed name (hidden once a pick was made).
+  // Attendee suggestions for the typed name (hidden once a pick was made, and
+  // never shown when the person is locked).
   const suggestions = useMemo(() => {
+    if (lockedAttendee) return []
     const query = form.name.trim()
     if (!query || form.rsvpId) return []
     return (rsvps || [])
       .filter((r) => matchesQuery(query, r.firstName, r.lastName))
       .slice(0, 6)
-  }, [rsvps, form.name, form.rsvpId])
+  }, [rsvps, form.name, form.rsvpId, lockedAttendee])
 
   function handleNameChange(value) {
     // Any manual edit breaks the link — the name no longer matches the pick.
@@ -117,7 +123,7 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
         side: form.side,
         note: form.note.trim(),
       })
-      setForm(initialForm())
+      setForm(initialForm(lockedAttendee))
     } catch {
       setError('Eklenemedi, tekrar deneyin')
     } finally {
@@ -130,7 +136,15 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
       onSubmit={handleSubmit}
       className="card-soft p-4 mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
     >
-      <Field label="Kişi" className="flex-1 min-w-[11rem] relative">
+      {lockedAttendee ? (
+        <Field label="Kişi" className="flex-1 min-w-[11rem]">
+          <div className="flex items-center gap-1.5 box-border w-full px-3 py-2 rounded border border-gold/50 bg-gold/5 text-ink">
+            <span className="text-gold shrink-0">★</span>
+            <span className="truncate">{lockedAttendee.name}</span>
+          </div>
+        </Field>
+      ) : (
+        <Field label="Kişi" className="flex-1 min-w-[11rem] relative">
         <input
           type="text"
           value={form.name}
@@ -162,7 +176,8 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
             ))}
           </div>
         )}
-      </Field>
+        </Field>
+      )}
       <Field label="Cinsi" className="w-full sm:w-28">
         <select
           value={form.kind}
@@ -262,7 +277,7 @@ export default function GiftForm({ rsvps, sideOpts, onAdd }) {
         />
       </Field>
       <button type="submit" className="btn-lux w-full sm:w-auto" disabled={adding}>
-        {adding ? 'Ekleniyor…' : 'Ekle'}
+        {adding ? 'Ekleniyor…' : submitLabel}
       </button>
       {error && <p className="text-rose text-sm w-full">{error}</p>}
     </form>

@@ -2,7 +2,17 @@
 // Shows live totals at the top, a compact "add attendee" form, and per-row
 // inline editing of adult/child counts plus delete.
 import { useEffect, useMemo, useState } from 'react'
-import { getRsvps, addRsvp, updateRsvp, deleteRsvp, getSiteContent, getGifts } from '../adminApi'
+import {
+  getRsvps,
+  addRsvp,
+  updateRsvp,
+  deleteRsvp,
+  getSiteContent,
+  getGifts,
+  addGift,
+  linkGift,
+  unlinkGift,
+} from '../adminApi'
 import { formatDateTime } from '../format'
 import { confirmDialog } from '../../lib/confirm.js'
 import PanelControls from '../PanelControls.jsx'
@@ -12,6 +22,8 @@ import FilterRow from '../FilterRow.jsx'
 import Field from '../Field.jsx'
 import { matchesQuery, compareNames, compareNewest } from '../search.js'
 import { GROUP_OPTIONS, sideOptions, TagSelect } from '../rsvpTags.jsx'
+import { giftRsvpIds, giftSummaryLabel } from '../gifts/giftModel.js'
+import LinkGiftDialog from '../gifts/LinkGiftDialog.jsx'
 
 // Ordering options + comparators for the RSVP list.
 const RSVP_SORTS = [
@@ -48,8 +60,13 @@ export default function Rsvps({ onAuthError }) {
   const [noteFilter, setNoteFilter] = useState('all')
   // Couple's names for the "side" tag labels (fall back to generic words).
   const [couple, setCouple] = useState({ bride: '', groom: '' })
-  // Attendees with at least one linked gift record get a star next to their name.
-  const [giftedIds, setGiftedIds] = useState(() => new Set())
+  // Gift ledger: attendees linked to a gift get a star; the ★ hover previews
+  // what they gave and the 🔗 opens the link dialog.
+  const [gifts, setGifts] = useState([])
+  const [linkTarget, setLinkTarget] = useState(null)
+  // Fixed-position preview card for the hovered star ({ rect, gifts, name }),
+  // rendered outside the scroll container so it isn't clipped.
+  const [hoverGifts, setHoverGifts] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -63,10 +80,7 @@ export default function Rsvps({ onAuthError }) {
       .then((d) => alive && setCouple({ bride: d?.bride || '', groom: d?.groom || '' }))
       .catch(() => {})
     getGifts()
-      .then((d) => {
-        if (!alive) return
-        setGiftedIds(new Set((d.gifts || []).map((g) => g.rsvpId).filter(Boolean)))
-      })
+      .then((d) => alive && setGifts(d.gifts || []))
       .catch(() => {})
     return () => {
       alive = false
@@ -74,6 +88,17 @@ export default function Rsvps({ onAuthError }) {
   }, [onAuthError])
 
   const sideOpts = useMemo(() => sideOptions(couple.bride, couple.groom), [couple])
+  // attendee id → the gift records linked to them (via rsvpId or rsvpIds).
+  const giftsByRsvp = useMemo(() => {
+    const map = new Map()
+    for (const g of gifts) {
+      for (const id of giftRsvpIds(g)) {
+        if (!map.has(id)) map.set(id, [])
+        map.get(id).push(g)
+      }
+    }
+    return map
+  }, [gifts])
   // Filter-pill choices reuse the tag metadata; "all" leads each row.
   const groupFilters = [{ value: 'all', label: 'Tümü' }, ...GROUP_OPTIONS.filter((o) => o.value)]
   const sideFilters = [{ value: 'all', label: 'Tümü' }, ...sideOpts.filter((o) => o.value)]
@@ -188,6 +213,37 @@ export default function Rsvps({ onAuthError }) {
       await updateRsvp({ id: entry.id, [field]: value })
     } catch (err) {
       handleError(err)
+    }
+  }
+
+  // Gift linking, driven from the open dialog (linkTarget is the attendee).
+  async function handleLink(giftId) {
+    try {
+      const updated = await linkGift(giftId, linkTarget.id)
+      setGifts((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  async function handleUnlink(giftId) {
+    try {
+      const updated = await unlinkGift(giftId, linkTarget.id)
+      setGifts((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  // Create-and-link a new gift from the dialog; rethrows so GiftForm can show
+  // its inline error.
+  async function handleCreateGift(payload) {
+    try {
+      const created = await addGift(payload)
+      setGifts((prev) => [created, ...prev])
+    } catch (err) {
+      if (err.name === 'AuthError') onAuthError()
+      throw err
     }
   }
 
@@ -355,15 +411,34 @@ export default function Rsvps({ onAuthError }) {
                       <span className="truncate">
                         {r.firstName} {r.lastName}
                       </span>
-                      {giftedIds.has(r.id) && (
-                        <span
-                          className="text-gold shrink-0"
-                          title="Hediye kaydı var"
-                          aria-label="Hediye kaydı var"
+                      {(giftsByRsvp.get(r.id) || []).length > 0 && (
+                        <button
+                          type="button"
+                          className="text-gold shrink-0 cursor-pointer"
+                          title="Takılan hediyeler"
+                          aria-label="Takılan hediyeler"
+                          onMouseEnter={(e) =>
+                            setHoverGifts({
+                              rect: e.currentTarget.getBoundingClientRect(),
+                              gifts: giftsByRsvp.get(r.id) || [],
+                              name: `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim(),
+                            })
+                          }
+                          onMouseLeave={() => setHoverGifts(null)}
+                          onClick={() => setLinkTarget(r)}
                         >
                           ★
-                        </span>
+                        </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setLinkTarget(r)}
+                        aria-label="Hediye bağla"
+                        title="Hediye bağla"
+                        className="shrink-0 text-muted hover:text-gold transition-colors text-sm"
+                      >
+                        🔗
+                      </button>
                       {r.addedByAdmin && (
                         <span className="label-gold text-[0.55rem] border border-gold/50 rounded px-1.5 py-0.5 shrink-0">
                           elle eklendi
@@ -448,6 +523,41 @@ export default function Rsvps({ onAuthError }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Star preview: what the hovered attendee was given. Fixed so the scroll
+          container above can't clip it. */}
+      {hoverGifts && (
+        <div
+          className="fixed z-[80] card-soft p-3 shadow-xl max-w-xs pointer-events-none"
+          style={{
+            left: Math.min(hoverGifts.rect.left, window.innerWidth - 280),
+            top: hoverGifts.rect.bottom + 6,
+          }}
+        >
+          <p className="label-gold mb-1.5">Takılan</p>
+          <ul className="space-y-1">
+            {hoverGifts.gifts.map((g) => (
+              <li key={g.id} className="text-sm text-ink">
+                {g.name && g.name !== hoverGifts.name
+                  ? `${g.name} — ${giftSummaryLabel(g)}`
+                  : giftSummaryLabel(g)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {linkTarget && (
+        <LinkGiftDialog
+          attendee={linkTarget}
+          gifts={gifts}
+          sideOpts={sideOpts}
+          onLink={handleLink}
+          onUnlink={handleUnlink}
+          onCreate={handleCreateGift}
+          onClose={() => setLinkTarget(null)}
+        />
       )}
     </div>
   )

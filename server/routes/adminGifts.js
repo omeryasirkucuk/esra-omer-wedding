@@ -37,6 +37,11 @@ const toRate = (value) => {
   const n = Number(value)
   return Number.isFinite(n) && n > 0 ? n : null
 }
+// A list of attendee ids: trimmed, non-empty, de-duplicated.
+const toIdList = (value) =>
+  Array.isArray(value)
+    ? [...new Set(value.map((v) => String(v || '').trim()).filter(Boolean))]
+    : []
 
 export const adminGiftsRouter = Router()
 
@@ -73,6 +78,9 @@ adminGiftsRouter.post('/gifts', async (req, res, next) => {
       name: cleanName,
       // Link to the attendee record when the admin picked one from the list.
       rsvpId: typeof rsvpId === 'string' ? rsvpId.trim() : '',
+      // Extra contributors linked later from the Katılımcılar tab (collective
+      // gifts pooled by several guests). The picked person stays in `rsvpId`.
+      rsvpIds: [],
       kind,
       amount: gold ? 0 : toAmount(amount),
       goldType: gold ? goldType : '',
@@ -96,7 +104,7 @@ adminGiftsRouter.post('/gifts', async (req, res, next) => {
 // them); the editable fields are the ones the panel edits inline.
 adminGiftsRouter.post('/gifts/update', async (req, res, next) => {
   try {
-    const { id, name, amount, count, grams, group, side, note } = req.body || {}
+    const { id, name, amount, count, grams, group, side, note, rsvpIds } = req.body || {}
     const gifts = await storage.getCollection('gifts')
     const entry = gifts.find((g) => g.id === id)
     if (!entry) return res.status(404).json({ error: 'not found' })
@@ -107,6 +115,47 @@ adminGiftsRouter.post('/gifts/update', async (req, res, next) => {
     if (group !== undefined) entry.group = cleanTag(group, RSVP_GROUPS)
     if (side !== undefined) entry.side = cleanTag(side, RSVP_SIDES)
     if (note !== undefined) entry.note = cleanNote(note)
+    if (rsvpIds !== undefined) entry.rsvpIds = toIdList(rsvpIds)
+    await storage.saveCollection('gifts', gifts)
+    res.json(entry)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Add one attendee as a contributor to a gift (from the Katılımcılar tab). The
+// picked person stays in `rsvpId`; everyone else accumulates in `rsvpIds`.
+adminGiftsRouter.post('/gifts/link', async (req, res, next) => {
+  try {
+    const { id, rsvpId } = req.body || {}
+    const attendee = String(rsvpId || '').trim()
+    if (!attendee) return res.status(400).json({ error: 'rsvpId required' })
+    const gifts = await storage.getCollection('gifts')
+    const entry = gifts.find((g) => g.id === id)
+    if (!entry) return res.status(404).json({ error: 'not found' })
+    const ids = new Set(Array.isArray(entry.rsvpIds) ? entry.rsvpIds : [])
+    if (attendee !== entry.rsvpId) ids.add(attendee)
+    entry.rsvpIds = [...ids]
+    await storage.saveCollection('gifts', gifts)
+    res.json(entry)
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Remove one attendee from a gift's contributors (clears `rsvpId` too when it
+// was the picked person, so the star drops for them).
+adminGiftsRouter.post('/gifts/unlink', async (req, res, next) => {
+  try {
+    const { id, rsvpId } = req.body || {}
+    const attendee = String(rsvpId || '').trim()
+    const gifts = await storage.getCollection('gifts')
+    const entry = gifts.find((g) => g.id === id)
+    if (!entry) return res.status(404).json({ error: 'not found' })
+    if (entry.rsvpId === attendee) entry.rsvpId = ''
+    entry.rsvpIds = (Array.isArray(entry.rsvpIds) ? entry.rsvpIds : []).filter(
+      (v) => v !== attendee,
+    )
     await storage.saveCollection('gifts', gifts)
     res.json(entry)
   } catch (e) {

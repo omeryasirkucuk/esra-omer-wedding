@@ -107,6 +107,10 @@ export const getGifts = () => get('/api/admin/gifts')
 export const addGift = (payload) => post('/api/admin/gifts', payload)
 export const updateGift = (payload) => post('/api/admin/gifts/update', payload)
 export const deleteGift = (id) => post('/api/admin/gifts/delete', { id })
+// Add/remove one attendee as a contributor to a gift (collective gifts linked
+// from the Katılımcılar tab). Both return the updated gift record.
+export const linkGift = (id, rsvpId) => post('/api/admin/gifts/link', { id, rsvpId })
+export const unlinkGift = (id, rsvpId) => post('/api/admin/gifts/unlink', { id, rsvpId })
 export const getGiftSettings = () => get('/api/admin/gifts/settings')
 export const saveGiftSettings = (payload) => put('/api/admin/gifts/settings', payload)
 

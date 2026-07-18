@@ -128,6 +128,17 @@ export function formatValue(value, currency, maxFraction = 2) {
   return currency === 'try' ? `${text} ₺` : `${CURRENCY_SYMBOLS[currency]}${text}`
 }
 
+// Every attendee linked to a gift: the legacy single `rsvpId` (the person
+// picked when the gift was entered) plus any `rsvpIds` contributors added later
+// from the Katılımcılar tab — used when several guests pool one piece. Blanks
+// dropped, de-duplicated.
+export function giftRsvpIds(gift) {
+  const ids = []
+  if (gift?.rsvpId) ids.push(gift.rsvpId)
+  if (Array.isArray(gift?.rsvpIds)) ids.push(...gift.rsvpIds)
+  return [...new Set(ids.filter(Boolean))]
+}
+
 // Short human label of what was given: "2 × Çeyrek (22 ayar, 1,75 g)" / "$100".
 export function giftSummaryLabel(gift) {
   if (gift.kind === 'gold') {
