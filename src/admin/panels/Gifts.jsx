@@ -30,6 +30,7 @@ import {
   kindLabel,
   goldTypeLabel,
   giftKarat,
+  giftRsvpIds,
   giftValueTry,
   convertFromTry,
   formatValue,
@@ -474,7 +475,7 @@ export default function Gifts({ onAuthError }) {
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-display text-lg text-primary flex items-center gap-2 min-w-0">
                       <span className="truncate">{g.name}</span>
-                      {g.rsvpId && (
+                      {giftRsvpIds(g).length > 0 && (
                         <span className="text-gold shrink-0" title="Katılımcıya bağlı" aria-label="Katılımcıya bağlı">
                           ★
                         </span>
