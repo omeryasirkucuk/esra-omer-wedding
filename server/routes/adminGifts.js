@@ -100,18 +100,52 @@ adminGiftsRouter.post('/gifts', async (req, res, next) => {
   }
 })
 
-// Edit a gift item. The kind/goldType are fixed at creation (re-add to change
-// them); the editable fields are the ones the panel edits inline.
+// Edit a gift item. Two shapes:
+//  - Partial inline edits (no `kind` in the body): individual number/tag/note
+//    fields, constrained to the entry's current kind — the quick in-list edits.
+//  - Full re-specification (with `kind`): the inline editor may change the kind
+//    (TL/Dolar/Euro/Altın) and gold subtype/karat, so the whole value shape is
+//    re-derived and validated like a create. The attendee links (rsvpId/
+//    rsvpIds) are never touched here — those live on the Katılımcılar tab.
 adminGiftsRouter.post('/gifts/update', async (req, res, next) => {
   try {
-    const { id, name, amount, count, grams, group, side, note, rsvpIds } = req.body || {}
+    const { id, name, kind, amount, goldType, karat, count, grams, group, side, note, rsvpIds } =
+      req.body || {}
     const gifts = await storage.getCollection('gifts')
     const entry = gifts.find((g) => g.id === id)
     if (!entry) return res.status(404).json({ error: 'not found' })
+
+    // Validate the full re-spec up front, before mutating anything, so an
+    // invalid payload can't leave the entry half-changed.
+    let valueUpdate = null
+    if (kind !== undefined) {
+      if (!GIFT_KINDS.has(kind)) return res.status(400).json({ error: 'invalid kind' })
+      const gold = kind === 'gold'
+      if (gold) {
+        if (!GOLD_TYPES.has(goldType)) return res.status(400).json({ error: 'invalid gold type' })
+        if (!toPieces(count)) return res.status(400).json({ error: 'count required' })
+        if (!toAmount(grams)) return res.status(400).json({ error: 'grams required' })
+      } else if (!toAmount(amount)) {
+        return res.status(400).json({ error: 'amount required' })
+      }
+      valueUpdate = {
+        kind,
+        amount: gold ? 0 : toAmount(amount),
+        goldType: gold ? goldType : '',
+        karat: gold ? toKarat(karat, goldType) : 0,
+        count: gold ? toPieces(count) : 0,
+        grams: gold ? toAmount(grams) : 0,
+      }
+    }
+
     if (name !== undefined) entry.name = String(name).trim() || entry.name
-    if (amount !== undefined && entry.kind !== 'gold') entry.amount = toAmount(amount)
-    if (count !== undefined && entry.kind === 'gold') entry.count = toPieces(count)
-    if (grams !== undefined && entry.kind === 'gold') entry.grams = toAmount(grams)
+    if (valueUpdate) {
+      Object.assign(entry, valueUpdate)
+    } else {
+      if (amount !== undefined && entry.kind !== 'gold') entry.amount = toAmount(amount)
+      if (count !== undefined && entry.kind === 'gold') entry.count = toPieces(count)
+      if (grams !== undefined && entry.kind === 'gold') entry.grams = toAmount(grams)
+    }
     if (group !== undefined) entry.group = cleanTag(group, RSVP_GROUPS)
     if (side !== undefined) entry.side = cleanTag(side, RSVP_SIDES)
     if (note !== undefined) entry.note = cleanNote(note)

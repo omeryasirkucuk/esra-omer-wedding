@@ -12,13 +12,8 @@ import { useMemo, useState } from 'react'
 import Field from '../Field.jsx'
 import { matchesQuery } from '../search.js'
 import { GROUP_OPTIONS } from '../rsvpTags.jsx'
-import {
-  KIND_OPTIONS,
-  GOLD_TYPE_OPTIONS,
-  KARAT_OPTIONS,
-  defaultGrams,
-  defaultKarat,
-} from './giftModel.js'
+import GiftValueFields from './GiftValueFields.jsx'
+import { defaultGrams, defaultKarat, validateGiftValues } from './giftModel.js'
 
 const INPUT_CLASS =
   'w-full box-border bg-bg border border-line rounded px-3 py-2 text-ink outline-none focus:border-gold'
@@ -43,8 +38,6 @@ export default function GiftForm({ rsvps, sideOpts, onAdd, lockedAttendee = null
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
-
-  const gold = form.kind === 'gold'
 
   // Attendee suggestions for the typed name (hidden once a pick was made, and
   // never shown when the person is locked).
@@ -75,28 +68,9 @@ export default function GiftForm({ rsvps, sideOpts, onAdd, lockedAttendee = null
     setSuggestionsOpen(false)
   }
 
-  function handleKindChange(kind) {
-    setForm((f) => ({ ...f, kind }))
-  }
-
-  function handleGoldTypeChange(goldType) {
-    const grams = defaultGrams(goldType)
-    setForm((f) => ({
-      ...f,
-      goldType,
-      karat: String(defaultKarat(goldType)),
-      grams: grams == null ? '' : String(grams),
-    }))
-  }
-
   function validate() {
     if (!form.name.trim()) return 'İsim girin'
-    if (gold) {
-      if (!(Number(form.count) > 0)) return 'Adet girin'
-      if (!(Number(form.grams) > 0)) return 'Gram girin'
-      return ''
-    }
-    return Number(form.amount) > 0 ? '' : 'Tutar girin'
+    return validateGiftValues(form)
   }
 
   async function handleSubmit(e) {
@@ -178,73 +152,7 @@ export default function GiftForm({ rsvps, sideOpts, onAdd, lockedAttendee = null
         )}
         </Field>
       )}
-      <Field label="Cinsi" className="w-full sm:w-28">
-        <select
-          value={form.kind}
-          onChange={(e) => handleKindChange(e.target.value)}
-          className={INPUT_CLASS}
-        >
-          {KIND_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </Field>
-      {gold ? (
-        <>
-          <Field label="Tür" className="w-full sm:w-32">
-            <select
-              value={form.goldType}
-              onChange={(e) => handleGoldTypeChange(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              {GOLD_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Ayar" className="w-full sm:w-28">
-            <select
-              value={form.karat}
-              onChange={(e) => setForm((f) => ({ ...f, karat: e.target.value }))}
-              className={INPUT_CLASS}
-            >
-              {KARAT_OPTIONS.map((o) => (
-                <option key={o.value} value={String(o.value)}>{o.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Adet" className="w-full sm:w-20">
-            <input
-              type="number"
-              min="1"
-              value={form.count}
-              onChange={(e) => setForm((f) => ({ ...f, count: e.target.value }))}
-              className={INPUT_CLASS}
-            />
-          </Field>
-          <Field label="Gram" className="w-full sm:w-24">
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={form.grams}
-              onChange={(e) => setForm((f) => ({ ...f, grams: e.target.value }))}
-              className={INPUT_CLASS}
-            />
-          </Field>
-        </>
-      ) : (
-        <Field label="Tutar" className="w-full sm:w-32">
-          <input
-            type="number"
-            min="0"
-            step="any"
-            value={form.amount}
-            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-            className={INPUT_CLASS}
-          />
-        </Field>
-      )}
+      <GiftValueFields values={form} onPatch={(patch) => setForm((f) => ({ ...f, ...patch }))} />
       <Field label="Grup" className="flex-1 min-w-[7rem]">
         <select
           value={form.group}

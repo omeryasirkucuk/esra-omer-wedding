@@ -128,6 +128,18 @@ export function formatValue(value, currency, maxFraction = 2) {
   return currency === 'try' ? `${text} ₺` : `${CURRENCY_SYMBOLS[currency]}${text}`
 }
 
+// Validate the value fields of a gift form (kind + its amount/piece inputs),
+// shared by the add and edit forms. Returns a Turkish error string, or '' when
+// the values are complete. The name is validated by each form separately.
+export function validateGiftValues(values) {
+  if (values.kind === 'gold') {
+    if (!(Number(values.count) > 0)) return 'Adet girin'
+    if (!(Number(values.grams) > 0)) return 'Gram girin'
+    return ''
+  }
+  return Number(values.amount) > 0 ? '' : 'Tutar girin'
+}
+
 // Every attendee linked to a gift: the legacy single `rsvpId` (the person
 // picked when the gift was entered) plus any `rsvpIds` contributors added later
 // from the Katılımcılar tab — used when several guests pool one piece. Blanks

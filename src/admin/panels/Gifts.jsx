@@ -39,6 +39,7 @@ import {
   goldRateFor,
 } from '../gifts/giftModel.js'
 import GiftForm from '../gifts/GiftForm.jsx'
+import GiftEditForm from '../gifts/GiftEditForm.jsx'
 import GiftSheet from '../gifts/GiftSheet.jsx'
 import { exportSheetPng, exportSheetPdf, exportXlsx } from '../gifts/giftExport.js'
 
@@ -90,6 +91,8 @@ export default function Gifts({ onAuthError }) {
   const [display, setDisplay] = useState('try')
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  // Id of the entry currently open in the full inline editor, or null.
+  const [editingId, setEditingId] = useState(null)
   const sheetRef = useRef(null)
 
   useEffect(() => {
@@ -201,6 +204,20 @@ export default function Gifts({ onAuthError }) {
     try {
       const created = await addGift(payload)
       setGifts((prev) => [created, ...(prev || [])])
+    } catch (err) {
+      if (err.name === 'AuthError') onAuthError()
+      throw err
+    }
+  }
+
+  // Persist a full edit from the inline editor (name, kind, gold type/karat,
+  // value, tags, note). The attendee links (rsvpId/rsvpIds) are left untouched.
+  // Rethrows so the form can show its inline error.
+  async function handleUpdate(payload) {
+    try {
+      const updated = await updateGift(payload)
+      setGifts((prev) => (prev || []).map((g) => (g.id === updated.id ? { ...g, ...updated } : g)))
+      setEditingId(null)
     } catch (err) {
       if (err.name === 'AuthError') onAuthError()
       throw err
@@ -462,11 +479,21 @@ export default function Gifts({ onAuthError }) {
             <span className="text-right w-52">Hediye</span>
             <span className="text-right w-28">Değer</span>
             <span className="text-right w-36">Tarih</span>
-            <span className="w-8" />
+            <span className="w-16" />
           </div>
 
           <ul>
-            {filtered.map((g) => (
+            {filtered.map((g) =>
+              editingId === g.id ? (
+                <li key={g.id} className="px-4 py-3 border-b border-line/60 last:border-0">
+                  <GiftEditForm
+                    gift={g}
+                    sideOpts={sideOpts}
+                    onSave={handleUpdate}
+                    onCancel={() => setEditingId(null)}
+                  />
+                </li>
+              ) : (
               <li
                 key={g.id}
                 className="px-4 py-3 border-b border-line/60 last:border-0 flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] sm:gap-4 sm:items-center"
@@ -481,15 +508,26 @@ export default function Gifts({ onAuthError }) {
                         </span>
                       )}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(g)}
-                      aria-label="Sil"
-                      title="Sil"
-                      className="shrink-0 text-muted hover:text-rose transition-colors sm:hidden"
-                    >
-                      🗑
-                    </button>
+                    <div className="flex items-center gap-3 shrink-0 sm:hidden">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(g.id)}
+                        aria-label="Düzenle"
+                        title="Düzenle"
+                        className="text-muted hover:text-gold transition-colors"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(g)}
+                        aria-label="Sil"
+                        title="Sil"
+                        className="text-muted hover:text-rose transition-colors"
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <TagSelect
@@ -567,18 +605,30 @@ export default function Gifts({ onAuthError }) {
                   <span className="text-muted text-sm whitespace-nowrap basis-full sm:basis-auto sm:text-right sm:w-36 sm:self-center lining-nums tabular-nums">
                     {formatDateTime(g.createdAt)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(g)}
-                    aria-label="Sil"
-                    title="Sil"
-                    className="hidden sm:block text-muted hover:text-rose transition-colors sm:w-8 sm:text-center"
-                  >
-                    🗑
-                  </button>
+                  <div className="hidden sm:flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(g.id)}
+                      aria-label="Düzenle"
+                      title="Düzenle"
+                      className="text-muted hover:text-gold transition-colors"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(g)}
+                      aria-label="Sil"
+                      title="Sil"
+                      className="text-muted hover:text-rose transition-colors"
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </div>
               </li>
-            ))}
+              ),
+            )}
           </ul>
         </div>
       )}
