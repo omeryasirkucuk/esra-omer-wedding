@@ -11,6 +11,7 @@ import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { storage } from '../storage/index.js'
 import { RSVP_GROUPS, RSVP_SIDES, cleanTag, cleanNote } from '../lib/attendeeTags.js'
+import { fetchLiveRates } from '../lib/liveRates.js'
 
 const GIFT_KINDS = new Set(['try', 'usd', 'eur', 'gold'])
 const GOLD_TYPES = new Set(['gram', 'ceyrek', 'yarim', 'tam', 'bilezik', 'other'])
@@ -207,6 +208,20 @@ adminGiftsRouter.post('/gifts/delete', async (req, res, next) => {
     res.status(204).end()
   } catch (e) {
     next(e)
+  }
+})
+
+// Live market rates pulled from an external provider, mapped onto our rate
+// keys. The "Kurları Güncelle" button calls this, then persists the merged
+// result through PUT /gifts/settings — so refreshing reuses the same save path
+// as a hand edit. A provider outage returns 502 (not the generic 500) so the
+// client can tell "couldn't reach the source" apart from a real server fault.
+adminGiftsRouter.get('/gifts/rates/live', async (req, res) => {
+  try {
+    res.json(await fetchLiveRates())
+  } catch (e) {
+    console.error('[gifts] live rate fetch failed:', e.message)
+    res.status(502).json({ error: 'rate source unavailable' })
   }
 })
 

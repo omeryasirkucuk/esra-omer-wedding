@@ -113,6 +113,10 @@ export const linkGift = (id, rsvpId) => post('/api/admin/gifts/link', { id, rsvp
 export const unlinkGift = (id, rsvpId) => post('/api/admin/gifts/unlink', { id, rsvpId })
 export const getGiftSettings = () => get('/api/admin/gifts/settings')
 export const saveGiftSettings = (payload) => put('/api/admin/gifts/settings', payload)
+// Live market rates (USD/EUR + per-karat gram gold, all TL) from the server's
+// provider. Returns { rates, source, updatedAt }; the panel merges `rates` over
+// the current values and persists them via saveGiftSettings.
+export const getLiveRates = () => get('/api/admin/gifts/rates/live')
 
 export const getUploaders = () => get('/api/admin/uploaders')
 

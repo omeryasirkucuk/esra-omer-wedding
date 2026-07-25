@@ -12,6 +12,7 @@ import {
   deleteGift,
   getGiftSettings,
   saveGiftSettings,
+  getLiveRates,
   getRsvps,
   getSiteContent,
 } from '../adminApi'
@@ -78,6 +79,9 @@ const EXPORT_FORMATS = [
 export default function Gifts({ onAuthError }) {
   const [gifts, setGifts] = useState(null)
   const [rates, setRates] = useState({})
+  // Live-rate refresh: in-flight flag + the provider's last quote timestamp.
+  const [refreshing, setRefreshing] = useState(false)
+  const [ratesUpdatedAt, setRatesUpdatedAt] = useState(null)
   const [rsvps, setRsvps] = useState([])
   const [couple, setCouple] = useState({ bride: '', groom: '' })
   const [error, setError] = useState(false)
@@ -281,6 +285,25 @@ export default function Gifts({ onAuthError }) {
     }
   }
 
+  // Pull live market rates from the server's provider, merge them over the
+  // current values (a missing field keeps its hand-entered rate), and persist.
+  async function handleRefreshRates() {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      const { rates: live, updatedAt } = await getLiveRates()
+      const next = { ...rates, ...live }
+      setRates(next)
+      setRatesUpdatedAt(updatedAt || null)
+      await saveGiftSettings(next)
+    } catch (err) {
+      if (err.name === 'AuthError') onAuthError()
+      else await alertDialog('Kurlar alınamadı, tekrar deneyin.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   // Display-ready rows shared by the print sheet and the spreadsheet.
   const exportRows = useMemo(
     () =>
@@ -375,9 +398,29 @@ export default function Gifts({ onAuthError }) {
         </div>
       )}
 
-      {/* Hand-entered conversion rates + the unit the total is shown in. */}
-      <div className="card-soft p-4 mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
-        {RATE_FIELDS.map(({ key, label }) => (
+      {/* Conversion rates (hand-entered or pulled live) + the unit the total is
+          shown in. "Kurları Güncelle" fetches current market rates and saves. */}
+      <div className="card-soft p-4 mb-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="label-gold">Kurlar</span>
+          <div className="flex items-center gap-3">
+            {ratesUpdatedAt && (
+              <span className="text-muted text-xs lining-nums tabular-nums">
+                {formatDateTime(ratesUpdatedAt.replace(' ', 'T'))}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleRefreshRates}
+              disabled={refreshing}
+              className="btn-lux !px-4 !py-2 disabled:opacity-50"
+            >
+              {refreshing ? 'Güncelleniyor…' : 'Kurları Güncelle'}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+          {RATE_FIELDS.map(({ key, label }) => (
           <Field key={key} label={label} className="flex-1 min-w-[7rem]">
             <input
               type="number"
@@ -408,6 +451,7 @@ export default function Gifts({ onAuthError }) {
               </button>
             ))}
           </div>
+        </div>
         </div>
       </div>
 
